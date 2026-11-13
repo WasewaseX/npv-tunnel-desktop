@@ -106,8 +106,13 @@ jobs:
             association so a double-click imports a configuration into the app.
           * **NpvTunnel-$env:VERSION-win-x64-portable.zip** - self-contained single file;
             run it from anywhere, nothing installed.
-          * **NpvTunnel-$env:VERSION-win-x64-lite.zip** - smallest download, needs the
-            .NET 8 Desktop Runtime.
+          * **NpvTunnel-$env:VERSION-win-x64-lite.zip** - smallest download (~2 MB app
+            plus the engine) and **requires the .NET 8 Desktop Runtime**; if you do not
+            want to install that, use the setup or the portable zip instead. The setup
+            and portable builds are self-contained and need nothing.
+
+          All builds are 64-bit Windows 10/11. The ``.npvt`` association is registered by
+          the setup; the portable zip registers it from inside the app (Settings -> Toggle).
 
           Verify anything you download against ``npvtunnel-$env:VERSION-checksums.txt``.
 

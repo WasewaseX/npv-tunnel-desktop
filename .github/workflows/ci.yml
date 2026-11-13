@@ -85,6 +85,40 @@ jobs:
       - name: Publish win-x64 (framework-dependent)
         run: dotnet publish src/NpvTunnel.App/NpvTunnel.App.csproj -c Release -r win-x64 --self-contained false -o publish/smoke
 
+      - name: Assert no invariant globalization
+        shell: pwsh
+        run: |
+          # 1.0.0 shipped with InvariantGlobalization=true and died on the first
+          # render with "Cannot find non-neutral culture related to 'en-us'".
+          $cfg = 'publish/smoke/NpvTunnel.runtimeconfig.json'
+          if (Test-Path $cfg) {
+            $json = Get-Content $cfg -Raw
+            if ($json -match 'System\.Globalization\.Invariant"\s*:\s*true') {
+              throw 'Invariant globalization is enabled; WPF cannot render that way.'
+            }
+          }
+          $props = Get-Content Directory.Build.props -Raw
+          if ($props -match '<InvariantGlobalization>\s*true') {
+            throw 'Directory.Build.props enables invariant globalization.'
+          }
+
+      - name: Launch the real app (--selftest)
+        shell: pwsh
+        run: |
+          # Runs the production startup path: resources, services, view models,
+          # window creation and the first render pass. Exit code 0 means the shell
+          # actually starts; anything else prints the log and fails the build.
+          $exe = 'publish/smoke/NpvTunnel.exe'
+          $p = Start-Process -FilePath $exe -ArgumentList '--selftest' -PassThru -Wait
+          if ($p.ExitCode -ne 0) {
+            $logDir = Join-Path $env:LOCALAPPDATA 'NpvTunnel\logs'
+            if (Test-Path $logDir) {
+              Get-ChildItem $logDir -Filter *.log | ForEach-Object { Get-Content $_.FullName -Tail 80 }
+            }
+            throw "Self-test failed with exit code $($p.ExitCode)"
+          }
+          Write-Host 'Self-test passed: the window was created and rendered.'
+
       - name: Assert GUI subsystem (no console window)
         shell: pwsh
         run: |

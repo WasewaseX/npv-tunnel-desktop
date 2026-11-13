@@ -1,5 +1,6 @@
 using System.IO;
 using System.Windows;
+using System.Windows.Threading;
 using NpvTunnel.App.Services;
 using NpvTunnel.App.ViewModels;
 
@@ -18,6 +19,17 @@ public partial class App : Application
 
         AppPaths.EnsureCreated();
         Logs = new LogService();
+
+        // `--selftest` runs the real startup path (resources, view models, window
+        // creation and the first render pass) without a user, then exits with a
+        // status code. CI runs it against the published binary, which is how the
+        // 1.0.0 globalization crash would have been caught before shipping.
+        if (e.Args.Any(a => a.Equals("--selftest", StringComparison.OrdinalIgnoreCase)))
+        {
+            RunSelfTest();
+            return;
+        }
+
         Logs.Info("app", $"NPV Tunnel Desktop {typeof(App).Assembly.GetName().Version} starting.");
 
         HookCrashHandlers();
@@ -74,6 +86,40 @@ public partial class App : Application
             settings.FileAssociationOffered = true;
             settings.Save();
             OfferAssociation(association);
+        }
+    }
+
+    private void RunSelfTest()
+    {
+        try
+        {
+            var settings = AppSettings.Load();
+            var profiles = new ProfileRepository(Logs);
+            var engine = new EngineManager(Logs);
+            var proxy = new SystemProxyService(Logs);
+            var association = new FileAssociationService(Logs);
+
+            _viewModel = new MainViewModel(Logs, settings, profiles, engine, proxy, association);
+
+            var window = new MainWindow { DataContext = _viewModel };
+            MainWindow = window;
+            window.Show();
+
+            // Force a layout + render pass: template/binding/resource failures
+            // surface here, not in the constructor.
+            Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+            window.UpdateLayout();
+            Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+
+            window.Close();
+            Logs.Info("app", "Self-test passed.");
+            Shutdown(0);
+        }
+        catch (Exception ex)
+        {
+            Logs.Error("app", "Self-test failed: " + ex);
+            Console.Error.WriteLine(ex);
+            Shutdown(2);
         }
     }
 

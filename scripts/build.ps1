@@ -42,6 +42,31 @@ dotnet publish src/NpvTunnel.App/NpvTunnel.App.csproj --configuration $Configura
     -p:Version=$Version --output publish/portable
 if ($LASTEXITCODE -ne 0) { throw 'Publish failed.' }
 
+# --- publish guards ---------------------------------------------------------
+# The portable build must really be self-contained: a single executable over
+# 30 MB. If -p:SelfContained=true ever stops taking effect, this fails instead of
+# shipping a "portable" download that asks the user to install the .NET runtime.
+$portableExe = Get-Item 'publish/portable/NpvTunnel.exe' -ErrorAction SilentlyContinue
+if (-not $portableExe) { throw 'publish/portable/NpvTunnel.exe is missing.' }
+if ($portableExe.Length -lt 30MB) {
+    throw "Portable build is only $([math]::Round($portableExe.Length/1MB,1)) MB - it is not self-contained."
+}
+
+$liteExe = Get-Item 'publish/lite/NpvTunnel.exe' -ErrorAction SilentlyContinue
+if (-not $liteExe) { throw 'publish/lite/NpvTunnel.exe is missing.' }
+if ($liteExe.Length -gt 5MB) {
+    throw "Lite build is $([math]::Round($liteExe.Length/1MB,1)) MB - it should stay small and framework-dependent."
+}
+
+# Invariant globalization breaks WPF on its first render (the 1.0.0 crash), so
+# the generated runtime config is checked before anything is packaged.
+foreach ($cfg in @(Get-ChildItem 'publish' -Recurse -Filter 'NpvTunnel.runtimeconfig.json')) {
+    $json = Get-Content $cfg.FullName -Raw
+    if ($json -match 'System\.Globalization\.Invariant"\s*:\s*true') {
+        throw "Invariant globalization is enabled in $($cfg.FullName); WPF cannot run that way."
+    }
+}
+
 Write-Host '==> Tunnel engine'
 if (-not (Test-Path 'core/xray.exe')) {
     Invoke-WebRequest -Uri $engineUrl -OutFile engine.zip

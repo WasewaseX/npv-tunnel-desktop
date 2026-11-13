@@ -28,7 +28,7 @@ window, no Electron, no browser engine, no telemetry.
 
 ## Install
 
-**Recommended — the installer** (`NpvTunnel-1.0.0-win-x64-setup.exe`):
+**Recommended — the installer** (`NpvTunnel-1.0.1-win-x64-setup.exe`):
 
 1. Run it. Windows shows one SmartScreen prompt ("More info → Run anyway") because the
    binary is not code-signed — signing certificates cost money, and this project has none.
@@ -41,10 +41,10 @@ Portable alternatives, if you would rather not install anything:
 
 | Archive | Size | Needs |
 |---|---|---|
-| `NpvTunnel-1.0.0-win-x64-portable.zip` | ~63 MB | nothing — self-contained single file |
-| `NpvTunnel-1.0.0-win-x64-lite.zip` | ~2 MB | the **.NET 8 Desktop Runtime** |
+| `NpvTunnel-1.0.1-win-x64-portable.zip` | ~66 MB | nothing — self-contained single file |
+| `NpvTunnel-1.0.1-win-x64-lite.zip` | ~2 MB + engine | the **.NET 8 Desktop Runtime** — if Windows offers to send you to a download page, you have the lite build; take the setup or the portable zip instead |
 
-Every release ships `npvtunnel-1.0.0-checksums.txt` (SHA-256) next to the binaries, and the
+Every release ships `npvtunnel-1.0.1-checksums.txt` (SHA-256) next to the binaries, and the
 bundled `core\xray.exe` is pinned by digest at build time.
 
 ### First run
@@ -85,7 +85,7 @@ plain `net8.0` so they are unit-tested on any runner.
 ## Testing
 
 ```bash
-dotnet test          # 79 tests: parsers, importer, locked envelope, config builder, redaction, validators
+dotnet test          # 82 tests: parsers, importer, locked envelope, config builder, redaction, validators
 ```
 
 The engine configuration builder is covered by tests that assert on the generated JSON —

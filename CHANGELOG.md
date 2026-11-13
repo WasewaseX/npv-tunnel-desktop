@@ -1,5 +1,28 @@
 # Changelog
 
+## 1.0.1 - 2026-11-13
+
+### Fixed
+
+* **Crash on launch (1.0.0).** `InvariantGlobalization=true` in
+  `Directory.Build.props` made WPF throw
+  `Cannot find non-neutral culture related to 'en-us'` while rendering the first
+  window, so both the installer and the portable build closed immediately with an
+  error box. Invariant mode is off, and three tests plus a workflow check now pin
+  it so it cannot come back.
+* The crash dialog now prints the log directory instead of pointing at a log view
+  the user cannot reach when startup fails.
+
+### Added
+
+* `--selftest` switch: runs the production startup path (resources, services, view
+  models, window creation, first render) and exits with a status code. CI executes
+  it against the published binary, so "the app starts" is now a tested fact.
+* `scripts/build.ps1` refuses to package a portable build under 30 MB (not really
+  self-contained) or any build whose runtime config enables invariant
+  globalization.
+* Release notes state plainly which download needs the .NET 8 Desktop Runtime.
+
 ## 1.0.0 — 2026-11-12
 
 First Windows release.
