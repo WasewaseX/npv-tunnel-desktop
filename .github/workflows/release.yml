@@ -127,6 +127,9 @@ jobs:
           ``npvtunnel-$env:VERSION-checksums.txt``, and each Linux archive ships its own
           ``NpvTunnel-$env:VERSION-linux-<arch>.sha256`` next to it.
 
+          Every change in this version, with the reasoning behind it, is in
+          ``CHANGELOG.md`` at the tag: https://github.com/WasewaseX/npv-tunnel-desktop/blob/v$env:VERSION/CHANGELOG.md
+
           Built by GitHub Actions from commit $env:COMMIT.
           "@
           $notes | Out-File notes.md -Encoding utf8
