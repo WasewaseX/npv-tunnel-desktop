@@ -123,7 +123,9 @@ jobs:
           All builds are 64-bit Windows 10/11. The ``.npvt`` association is registered by
           the setup; the portable zip registers it from inside the app (Settings -> Toggle).
 
-          Verify anything you download against ``npvtunnel-$env:VERSION-checksums.txt``.
+          Verify anything you download: the Windows assets are listed in
+          ``npvtunnel-$env:VERSION-checksums.txt``, and each Linux archive ships its own
+          ``NpvTunnel-$env:VERSION-linux-<arch>.sha256`` next to it.
 
           Built by GitHub Actions from commit $env:COMMIT.
           "@
