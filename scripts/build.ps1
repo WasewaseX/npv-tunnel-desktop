@@ -26,7 +26,9 @@ Write-Host "==> NPV Tunnel Desktop $Version" -ForegroundColor Cyan
 if (-not $SkipTests) {
     Write-Host '==> Tests'
     dotnet test tests/NpvTunnel.Core.Tests/NpvTunnel.Core.Tests.csproj --configuration $Configuration
-    if ($LASTEXITCODE -ne 0) { throw 'Tests failed.' }
+    if ($LASTEXITCODE -ne 0) { throw 'Core tests failed.' }
+    dotnet test tests/NpvTunnel.Cli.Tests/NpvTunnel.Cli.Tests.csproj --configuration $Configuration
+    if ($LASTEXITCODE -ne 0) { throw 'CLI tests failed.' }
 }
 
 Write-Host '==> Publish (lite)'
