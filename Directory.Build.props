@@ -1,8 +1,8 @@
 <Project>
   <PropertyGroup>
-    <Version>1.1.0</Version>
-    <AssemblyVersion>1.1.0.0</AssemblyVersion>
-    <FileVersion>1.1.0.0</FileVersion>
+    <Version>1.1.1</Version>
+    <AssemblyVersion>1.1.1.0</AssemblyVersion>
+    <FileVersion>1.1.1.0</FileVersion>
     <Company>WasewaseX</Company>
     <Authors>WasewaseX</Authors>
     <Product>NPV Tunnel Desktop</Product>
@@ -10,7 +10,12 @@
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <!-- The review asked for a build that refuses to hide problems. Every project in
+    the solution now compiles warning-free, so a new warning is a mistake to fix
+    rather than something to scroll past. -->
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
     <!-- InvariantGlobalization must stay false: WPF resolves cultures while it
     parses and renders its own templates, so invariant mode makes the first
     window throw CultureNotFoundException (that regression shipped in 1.0.0). -->

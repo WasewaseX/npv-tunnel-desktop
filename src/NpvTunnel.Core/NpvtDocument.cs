@@ -116,27 +116,27 @@ public sealed class NpvtDocument
         Transport transport;
         switch ((Network ?? "tcp").ToLowerInvariant())
         {
-        case "websocket":
-        case "ws":
-            transport = Transport.WebSocket;
-            break;
-        case "grpc":
-        case "gun":
-            transport = Transport.Grpc;
-            break;
-        case "httpupgrade":
-            transport = Transport.HttpUpgrade;
-            break;
-        case "splithttp":
-        case "xhttp":
-            transport = Transport.Xhttp;
-            break;
-        case "quic":
-            transport = Transport.Quic;
-            break;
-        default:
-            transport = Transport.Tcp;
-            break;
+            case "websocket":
+            case "ws":
+                transport = Transport.WebSocket;
+                break;
+            case "grpc":
+            case "gun":
+                transport = Transport.Grpc;
+                break;
+            case "httpupgrade":
+                transport = Transport.HttpUpgrade;
+                break;
+            case "splithttp":
+            case "xhttp":
+                transport = Transport.Xhttp;
+                break;
+            case "quic":
+                transport = Transport.Quic;
+                break;
+            default:
+                transport = Transport.Tcp;
+                break;
         }
         Transport transport2 = transport;
         string text = (Security ?? "none").ToLowerInvariant();

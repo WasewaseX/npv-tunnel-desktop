@@ -5,6 +5,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -175,15 +176,15 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         {
             switch (State)
             {
-            case ConnectionState.Connected:
-                return "#FF2FE3A8";
-            case ConnectionState.Connecting:
-            case ConnectionState.Disconnecting:
-                return "#FFFFB020";
-            case ConnectionState.Faulted:
-                return "#FFFF5C6C";
-            default:
-                return "#FF7C8B9A";
+                case ConnectionState.Connected:
+                    return "#FF2FE3A8";
+                case ConnectionState.Connecting:
+                case ConnectionState.Disconnecting:
+                    return "#FFFFB020";
+                case ConnectionState.Faulted:
+                    return "#FFFF5C6C";
+                default:
+                    return "#FF7C8B9A";
             }
         }
     }
@@ -360,7 +361,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         }
         set
         {
-            SaveSetting(delegate(bool v)
+            SaveSetting(delegate (bool v)
             {
                 _settings.BlockIpv6 = v;
             }, _settings.BlockIpv6, value, "BlockIpv6");
@@ -375,7 +376,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         }
         set
         {
-            SaveSetting(delegate(bool v)
+            SaveSetting(delegate (bool v)
             {
                 _settings.BlockQuic = v;
             }, _settings.BlockQuic, value, "BlockQuic");
@@ -390,7 +391,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         }
         set
         {
-            SaveSetting(delegate(bool v)
+            SaveSetting(delegate (bool v)
             {
                 _settings.BypassLan = v;
             }, _settings.BypassLan, value, "BypassLan");
@@ -405,7 +406,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         }
         set
         {
-            SaveSetting(delegate(bool v)
+            SaveSetting(delegate (bool v)
             {
                 _settings.BlockBitTorrent = v;
             }, _settings.BlockBitTorrent, value, "BlockBitTorrent");
@@ -420,7 +421,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         }
         set
         {
-            SaveSetting(delegate(bool v)
+            SaveSetting(delegate (bool v)
             {
                 _settings.AutoReconnect = v;
             }, _settings.AutoReconnect, value, "AutoReconnect");
@@ -435,7 +436,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         }
         set
         {
-            SaveSetting(delegate(bool v)
+            SaveSetting(delegate (bool v)
             {
                 _settings.AllowInsecureTls = v;
             }, _settings.AllowInsecureTls, value, "AllowInsecureTls");
@@ -682,16 +683,16 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             ImportFromClipboard();
             return Task.CompletedTask;
         });
-        RemoveProfileCommand = new RelayCommand(delegate(object? p)
+        RemoveProfileCommand = new RelayCommand(delegate (object? p)
         {
             RemoveProfile((p as ProfileItemViewModel) ?? SelectedProfile);
         });
-        SelectProfileCommand = new RelayCommand(delegate(object? p)
+        SelectProfileCommand = new RelayCommand(delegate (object? p)
         {
             SelectProfile(p as ProfileItemViewModel);
         });
         PingAllCommand = new AsyncRelayCommand(PingAllAsync);
-        ExportProfileCommand = new RelayCommand(delegate(object? p)
+        ExportProfileCommand = new RelayCommand(delegate (object? p)
         {
             ExportProfile((p as ProfileItemViewModel) ?? SelectedProfile);
         });
@@ -716,7 +717,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         {
             OpenDataFolder();
         });
-        NavigateCommand = new RelayCommand(delegate(object? p)
+        NavigateCommand = new RelayCommand(delegate (object? p)
         {
             Page = (p as string) ?? "dashboard";
         });
@@ -761,7 +762,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
     public async Task ConnectAsync()
     {
-        ProfileItemViewModel item = SelectedProfile;
+        ProfileItemViewModel? item = SelectedProfile;
         if (item == null)
         {
             SetFault("Select a server first. Import a .npvt file or paste a share link.");
@@ -775,6 +776,28 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         {
             Profile profile = _profiles.GetProfile(item.Id) ?? throw new InvalidOperationException("The profile no longer exists.");
             profile.AllowInsecure = _settings.AllowInsecureTls || profile.AllowInsecure;
+
+            // Resolve the endpoint once and audit the answer: a hostname is only as
+            // trustworthy as what it points at right now.
+            EndpointResolver.Resolution resolution = await EndpointResolver.ResolveAsync(profile.Address, _connectCts.Token).ConfigureAwait(continueOnCapturedContext: true);
+            IReadOnlyList<ConfigAudit.Finding> findings = ConfigAudit.Review(profile, resolution);
+            foreach (ConfigAudit.Finding finding in findings)
+            {
+                if (finding.Severity == ConfigAudit.Severity.Refused)
+                {
+                    _log.Error("audit", finding.Message);
+                }
+                else if (finding.Severity == ConfigAudit.Severity.Warning)
+                {
+                    _log.Warn("audit", finding.Message);
+                }
+            }
+
+            if (ConfigAudit.BlocksConnect(findings))
+            {
+                throw new EngineException(findings.First(f => f.Severity == ConfigAudit.Severity.Refused).Message);
+            }
+
             EngineOptions options = new EngineOptions
             {
                 SocksPort = _settings.SocksPort,
@@ -787,6 +810,13 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
                 LogLevel = _settings.LogLevel,
                 LocalOnly = true
             };
+            IPAddress? pinned = EndpointResolver.PinCandidate(resolution, options.BlockIpv6);
+            if (pinned is not null)
+            {
+                options.PinnedEndpointAddress = pinned.ToString();
+                _log.Info("engine", $"{profile.Address} resolves to {pinned}; the engine was pinned to that address for this session.");
+            }
+
             EngineConfig engineConfig = XrayConfigBuilder.Build(profile, options);
             foreach (string warning in engineConfig.Warnings)
             {
@@ -806,7 +836,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             State = ConnectionState.Connected;
             StatusDetail = (_settings.SetSystemProxy ? "Traffic is routed through the tunnel." : $"Point your apps at 127.0.0.1:{options.HttpPort} (HTTP) or {options.SocksPort} (SOCKS5).");
             _profiles.MarkConnected(item.Id);
-            RefreshPingForAsync(item);
+            _ = RefreshPingForAsync(item);
         }
         catch (OperationCanceledException)
         {
@@ -924,7 +954,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         if (activeProfileId.HasValue)
         {
             Guid activeId = activeProfileId.GetValueOrDefault();
-            ProfileItemViewModel profileItemViewModel = Profiles.FirstOrDefault((ProfileItemViewModel p) => p.Id == activeId);
+            ProfileItemViewModel? profileItemViewModel = Profiles.FirstOrDefault((ProfileItemViewModel p) => p.Id == activeId);
             if (profileItemViewModel != null)
             {
                 SelectedProfile = profileItemViewModel;
@@ -964,7 +994,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         {
             if (State != 0 && SelectedProfile?.Id == item.Id)
             {
-                DisconnectAsync();
+                _ = DisconnectAsync();
             }
             _profiles.Remove(item.Id);
             Profiles.Remove(item);
@@ -1027,7 +1057,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         if (batch.Error == ImportError.EncryptedNeedsPassword)
         {
             Application current = Application.Current;
-            string text = Dialogs.AskPassphrase((current != null) ? current.MainWindow : null, Path.GetFileName(path));
+            string? text = Dialogs.AskPassphrase((current != null) ? current.MainWindow : null, Path.GetFileName(path));
             if (string.IsNullOrEmpty(text))
             {
                 StatusDetail = "Import cancelled.";
@@ -1044,7 +1074,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         if (batch.Error == ImportError.EncryptedNeedsPassword)
         {
             Application current = Application.Current;
-            string text2 = Dialogs.AskPassphrase((current != null) ? current.MainWindow : null, "locked configuration");
+            string? text2 = Dialogs.AskPassphrase((current != null) ? current.MainWindow : null, "locked configuration");
             if (string.IsNullOrEmpty(text2))
             {
                 StatusDetail = "Import cancelled.";
@@ -1116,7 +1146,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
         if (first != null)
         {
-            RefreshPingForAsync(first);
+            _ = RefreshPingForAsync(first);
         }
     }
 
@@ -1144,7 +1174,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             SetFault("Select a profile to export.");
             return;
         }
-        Profile profile = _profiles.GetProfile(item.Id);
+        Profile? profile = _profiles.GetProfile(item.Id);
         if (profile == null)
         {
             return;
@@ -1161,7 +1191,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         }
         string text = NpvtDocument.FromProfile(profile).ToJson();
         Application current = Application.Current;
-        string text2 = Dialogs.AskPassphrase((current != null) ? current.MainWindow : null, "Optional: type a passphrase to lock the exported file (leave empty for plain npvt/1).", allowEmpty: true);
+        string? text2 = Dialogs.AskPassphrase((current != null) ? current.MainWindow : null, "Optional: type a passphrase to lock the exported file (leave empty for plain npvt/1).", allowEmpty: true);
         try
         {
             if (!string.IsNullOrEmpty(text2))
@@ -1197,7 +1227,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         SemaphoreSlim gate = new SemaphoreSlim(4);
         try
         {
-            await Task.WhenAll(((IEnumerable<ProfileItemViewModel>)Profiles).Select((Func<ProfileItemViewModel, Task>)async delegate(ProfileItemViewModel item)
+            await Task.WhenAll(((IEnumerable<ProfileItemViewModel>)Profiles).Select((Func<ProfileItemViewModel, Task>)async delegate (ProfileItemViewModel item)
             {
                 await gate.WaitAsync().ConfigureAwait(continueOnCapturedContext: true);
                 try
@@ -1241,7 +1271,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         {
             State = ConnectionState.Connecting;
             StatusDetail = "Downloading the tunnel engine…";
-            await EngineInstaller.DownloadAndInstallAsync(new Progress<double>(delegate(double p)
+            await EngineInstaller.DownloadAndInstallAsync(new Progress<double>(delegate (double p)
             {
                 StatusDetail = $"Downloading the tunnel engine… {p:P0}";
             }), _log, CancellationToken.None).ConfigureAwait(continueOnCapturedContext: true);
@@ -1383,7 +1413,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         //IL_0017: Unknown result type (might be due to invalid IL or missing references)
         //IL_001d: Invalid comparison between Unknown and I4
         Application current = Application.Current;
-        Window val = ((current != null) ? current.MainWindow : null);
+        Window? val = ((current != null) ? current.MainWindow : null);
         if (val != null)
         {
             if ((int)val.WindowState == 1)

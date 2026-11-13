@@ -18,7 +18,7 @@ namespace NpvTunnel.Cli;
 /// </summary>
 public static class SelfTest
 {
-    public static int Run(string? enginePath)
+    public static int Run(string? enginePath, bool trustCustomEngine = false)
     {
         int failures = 0;
         void Check(string name, Func<bool> test)

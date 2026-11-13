@@ -24,10 +24,10 @@ public sealed class FileAssociationService
 
     public bool IsRegistered()
     {
-        using RegistryKey registryKey = Registry.CurrentUser.OpenSubKey("Software\\Classes\\.npvt");
-        string a = registryKey?.GetValue(null) as string;
-        using RegistryKey registryKey2 = Registry.CurrentUser.OpenSubKey("Software\\Classes\\NpvTunnel.Config\\shell\\open\\command");
-        string text = registryKey2?.GetValue(null) as string;
+        using RegistryKey? registryKey = Registry.CurrentUser.OpenSubKey("Software\\Classes\\.npvt");
+        string? a = registryKey?.GetValue(null) as string;
+        using RegistryKey? registryKey2 = Registry.CurrentUser.OpenSubKey("Software\\Classes\\NpvTunnel.Config\\shell\\open\\command");
+        string? text = registryKey2?.GetValue(null) as string;
         return string.Equals(a, "NpvTunnel.Config", StringComparison.OrdinalIgnoreCase) && text != null && text.Contains(ExecutablePath, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -70,7 +70,7 @@ public sealed class FileAssociationService
         try
         {
             Registry.CurrentUser.DeleteSubKeyTree("Software\\Classes\\NpvTunnel.Config", throwOnMissingSubKey: false);
-            using (RegistryKey registryKey = Registry.CurrentUser.OpenSubKey("Software\\Classes\\.npvt", writable: true))
+            using (RegistryKey? registryKey = Registry.CurrentUser.OpenSubKey("Software\\Classes\\.npvt", writable: true))
             {
                 if (registryKey != null)
                 {
@@ -78,7 +78,7 @@ public sealed class FileAssociationService
                     {
                         registryKey.DeleteValue(string.Empty, throwOnMissingValue: false);
                     }
-                    using RegistryKey registryKey2 = registryKey.OpenSubKey("OpenWithProgids", writable: true);
+                    using RegistryKey? registryKey2 = registryKey.OpenSubKey("OpenWithProgids", writable: true);
                     registryKey2?.DeleteValue("NpvTunnel.Config", throwOnMissingValue: false);
                 }
             }

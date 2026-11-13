@@ -59,8 +59,10 @@ public partial class App : Application
         var proxy = new SystemProxyService(Logs);
         var association = new FileAssociationService(Logs);
 
-        // If a previous session was killed while connected, put the machine back.
+        // If a previous session was killed while connected, put the machine back and
+        // clear whatever it left in the runtime directory.
         proxy.RestoreIfStale();
+        engine.SweepStaleRuntimeFiles(Logs);
 
         _viewModel = new MainViewModel(Logs, settings, profiles, engine, proxy, association);
 

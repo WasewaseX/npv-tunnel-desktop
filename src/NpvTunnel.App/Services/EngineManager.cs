@@ -8,6 +8,8 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using NpvTunnel.Core.Engine;
+using NpvTunnel.Core.Security;
 
 namespace NpvTunnel.App.Services;
 
@@ -44,7 +46,7 @@ public sealed class EngineManager : IDisposable
         {
             lock (_gate)
             {
-                Process process = _process;
+                Process? process = _process;
                 return process != null && !process.HasExited;
             }
         }
@@ -56,7 +58,7 @@ public sealed class EngineManager : IDisposable
         {
             lock (_gate)
             {
-                Process process = _process;
+                Process? process = _process;
                 return (process != null && !process.HasExited) ? new int?(process.Id) : null;
             }
         }
@@ -73,15 +75,15 @@ public sealed class EngineManager : IDisposable
 
     public string ResolveEnginePath(AppSettings settings)
     {
+        // Only the engine this build was tested with runs from the window. A path left
+        // in an older settings file is reported and ignored rather than trusted: the
+        // GUI has no way to ask the user to vouch for an unknown binary, and silently
+        // running one would defeat the digest pin below.
         if (!string.IsNullOrWhiteSpace(settings.CustomEnginePath))
         {
-            string customEnginePath = settings.CustomEnginePath;
-            if (!File.Exists(customEnginePath))
-            {
-                throw new EngineException("The configured engine path does not exist: " + customEnginePath);
-            }
-            return customEnginePath;
+            _log.Warn("engine", "Ignoring the custom engine path in settings (" + settings.CustomEnginePath + "). The window runs the bundled, pinned engine; use the command-line build if you really need another binary.");
         }
+
         string[] array = new string[3]
         {
             Path.Combine(AppPaths.InstallDirectory, "core", "xray.exe"),
@@ -98,32 +100,24 @@ public sealed class EngineManager : IDisposable
         throw new EngineException("The tunnel engine is not installed. Download it from Settings → Engine, or unpack the full release archive so that core\\xray.exe sits next to NpvTunnel.exe.");
     }
 
-    public static void VerifyIntegrity(string enginePath)
+    /// <summary>
+    /// The digest compiled into this build decides. The ENGINE.sha256 in the release
+    /// archive is accepted only when it agrees with that pin - a sidecar can be
+    /// replaced together with the binary, so it cannot be the authority. Running some
+    /// other engine is possible only through the explicit custom-engine switch.
+    /// </summary>
+    public static EngineIntegrity.Verdict VerifyIntegrity(string enginePath, bool isCustom)
     {
-        string text = ReadSidecarHash(enginePath) ?? "1ca7a2cf61ba2c5d20b21a80d405b57933939751081cb289f07bd8ddf7cc3185";
-        string text2 = ComputeSha256(enginePath);
-        if (!string.Equals(text, text2, StringComparison.OrdinalIgnoreCase))
-        {
-            throw new EngineException("The tunnel engine failed its integrity check and was not started. " + $"Expected {text.Substring(0, 16)}…, found {text2.Substring(0, 16)}…. Reinstall from the official release.");
-        }
-    }
+        EngineIntegrity.Verdict verdict = isCustom
+            ? EngineIntegrity.VerifyCustom(enginePath)
+            : EngineIntegrity.VerifyBundled(enginePath, EngineManifest.PipelineSha256);
 
-    private static string? ReadSidecarHash(string enginePath)
-    {
-        string path = Path.Combine(Path.GetDirectoryName(enginePath), "ENGINE.sha256");
-        if (!File.Exists(path))
+        if (!verdict.Trusted)
         {
-            return null;
+            throw new EngineException(verdict.Message);
         }
-        try
-        {
-            string text = File.ReadAllText(path).Trim().Split(' ', '\t')[0].Trim();
-            return (text.Length == 64) ? text : null;
-        }
-        catch (IOException)
-        {
-            return null;
-        }
+
+        return verdict;
     }
 
     private static string ComputeSha256(string path)
@@ -138,12 +132,29 @@ public sealed class EngineManager : IDisposable
         {
             throw new EngineException("The tunnel is already running.");
         }
+        const bool custom = false;
         string engine = ResolveEnginePath(settings);
-        VerifyIntegrity(engine);
+        EngineIntegrity.Verdict verdict = VerifyIntegrity(engine, custom);
         EnginePath = engine;
+        if (verdict.Custom)
+        {
+            _log.Warn("engine", verdict.Message);
+        }
+
         AppPaths.EnsureCreated();
-        _configPath = Path.Combine(AppPaths.RuntimeDirectory, $"config-{Guid.NewGuid():N}.json");
+
+        // One directory per session, owner-only, so two runs cannot share a file and a
+        // stale one is obvious. The configuration is written, the core reads it, and it
+        // is shredded the moment the local port answers - see ShredConfig below.
+        string sessionDirectory = Path.Combine(AppPaths.RuntimeDirectory, "session-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(sessionDirectory);
+        WindowsAcl.RestrictToCurrentUser(sessionDirectory);
+        SecretShredder.RestrictToOwner(sessionDirectory, directory: true);
+
+        _configPath = Path.Combine(sessionDirectory, "config.json");
         await File.WriteAllTextAsync(_configPath, configJson, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false), cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
+        WindowsAcl.RestrictToCurrentUser(_configPath);
+        SecretShredder.RestrictToOwner(_configPath, directory: false);
         ProcessStartInfo processStartInfo = new ProcessStartInfo
         {
             FileName = engine,
@@ -165,11 +176,11 @@ public sealed class EngineManager : IDisposable
             StartInfo = processStartInfo,
             EnableRaisingEvents = true
         };
-        process.OutputDataReceived += delegate(object _, DataReceivedEventArgs e)
+        process.OutputDataReceived += delegate (object _, DataReceivedEventArgs e)
         {
             PumpLine(e.Data);
         };
-        process.ErrorDataReceived += delegate(object _, DataReceivedEventArgs e)
+        process.ErrorDataReceived += delegate (object _, DataReceivedEventArgs e)
         {
             PumpLine(e.Data);
         };
@@ -191,6 +202,8 @@ public sealed class EngineManager : IDisposable
             Stop();
             throw new EngineException("The tunnel did not come up: " + text + ". See the log for the core's own message.");
         }
+        // The core has parsed its configuration; nothing reads the file again.
+        ShredConfig();
         _log.Info("engine", "Local endpoints are listening. Tunnel is up.");
     }
 
@@ -262,7 +275,7 @@ public sealed class EngineManager : IDisposable
     public void Stop()
     {
         _stopping = true;
-        Process process;
+        Process? process;
         lock (_gate)
         {
             process = _process;
@@ -295,26 +308,60 @@ public sealed class EngineManager : IDisposable
 
     private void CleanUpConfig()
     {
-        string configPath = _configPath;
+        string? configPath = _configPath;
         _configPath = null;
-        if (configPath == null)
+        if (configPath is null)
         {
             return;
         }
-        try
+
+        ShredConfigPath(configPath);
+    }
+
+    /// <summary>Shreds the generated config and its session directory if it is still there.</summary>
+    private void ShredConfig()
+    {
+        string? configPath = _configPath;
+        _configPath = null;
+        if (configPath is null)
         {
-            SecretStore.SecureDelete(configPath);
+            return;
         }
-        catch (Exception)
+
+        ShredConfigPath(configPath);
+        _log.Debug("engine", "The generated engine config was shredded; the core holds it in memory only.");
+    }
+
+    private static void ShredConfigPath(string configPath)
+    {
+        SecretShredder.ShredFile(configPath);
+        string? directory = Path.GetDirectoryName(configPath);
+        if (!string.IsNullOrEmpty(directory) && Directory.Exists(directory))
         {
+            SecretShredder.ShredDirectory(directory);
         }
+    }
+
+    /// <summary>
+    /// Clears runtime files a killed session left behind. Called once at startup, before
+    /// a new session writes anything.
+    /// </summary>
+    public int SweepStaleRuntimeFiles(LogService log)
+    {
+        int removed = SecretShredder.SweepStale(AppPaths.RuntimeDirectory, TimeSpan.FromHours(1));
+        if (removed > 0)
+        {
+            log.Warn("engine", $"Removed {removed} leftover runtime file(s) from an earlier session that did not exit cleanly.");
+        }
+
+        return removed;
     }
 
     public bool TryGetTraffic(out long bytesIn, out long bytesOut)
     {
         bytesIn = 0L;
         bytesOut = 0L;
-        Process process;
+        Process? process;
         lock (_gate)
         {
             process = _process;

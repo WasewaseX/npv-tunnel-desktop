@@ -40,7 +40,7 @@ public sealed class SystemProxyService
     public bool IsApplied(out string? server)
     {
         server = null;
-        using RegistryKey registryKey = Registry.CurrentUser.OpenSubKey("Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings", writable: false);
+        using RegistryKey? registryKey = Registry.CurrentUser.OpenSubKey("Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings", writable: false);
         if (registryKey == null)
         {
             return false;
@@ -73,7 +73,7 @@ public sealed class SystemProxyService
     {
         try
         {
-            using (RegistryKey registryKey = Registry.CurrentUser.OpenSubKey("Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings", writable: true))
+            using (RegistryKey? registryKey = Registry.CurrentUser.OpenSubKey("Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings", writable: true))
             {
                 if (registryKey != null)
                 {
@@ -81,10 +81,10 @@ public sealed class SystemProxyService
                     registryKey.DeleteValue("ProxyServer", throwOnMissingValue: false);
                 }
             }
-            ProxySnapshot proxySnapshot = LoadSnapshot();
+            ProxySnapshot? proxySnapshot = LoadSnapshot();
             if (proxySnapshot != null && proxySnapshot.Existed)
             {
-                using RegistryKey registryKey2 = Registry.CurrentUser.OpenSubKey("Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings", writable: true);
+                using RegistryKey? registryKey2 = Registry.CurrentUser.OpenSubKey("Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings", writable: true);
                 if (registryKey2 != null)
                 {
                     registryKey2.SetValue("ProxyEnable", proxySnapshot.ProxyEnable, RegistryValueKind.DWord);
@@ -114,7 +114,7 @@ public sealed class SystemProxyService
 
     public void RestoreIfStale()
     {
-        using RegistryKey registryKey = Registry.CurrentUser.OpenSubKey("Software\\NpvTunnel\\ProxyBackup");
+        using RegistryKey? registryKey = Registry.CurrentUser.OpenSubKey("Software\\NpvTunnel\\ProxyBackup");
         if (registryKey != null)
         {
             _log.Warn("proxy", "A previous session ended without cleaning up the system proxy; restoring it now.");
@@ -124,7 +124,7 @@ public sealed class SystemProxyService
 
     private void SaveSnapshot()
     {
-        using RegistryKey registryKey = Registry.CurrentUser.OpenSubKey("Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings");
+        using RegistryKey? registryKey = Registry.CurrentUser.OpenSubKey("Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings");
         ProxySnapshot proxySnapshot = new ProxySnapshot();
         if (registryKey != null)
         {
@@ -142,7 +142,7 @@ public sealed class SystemProxyService
 
     private static ProxySnapshot? LoadSnapshot()
     {
-        using RegistryKey registryKey = Registry.CurrentUser.OpenSubKey("Software\\NpvTunnel\\ProxyBackup");
+        using RegistryKey? registryKey = Registry.CurrentUser.OpenSubKey("Software\\NpvTunnel\\ProxyBackup");
         if (!(registryKey?.GetValue("json") is string json))
         {
             return null;

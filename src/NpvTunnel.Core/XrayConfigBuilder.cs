@@ -1,4 +1,5 @@
 using System;
+using System.Net;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
@@ -37,15 +38,21 @@ public static class XrayConfigBuilder
         jsonObject["inbounds"] = new JsonArray(BuildSocksInbound(options), BuildHttpInbound(options));
         jsonObject["outbounds"] = new JsonArray(BuildProxyOutbound(profile, options, list), BuildDirect(), BuildBlock());
         jsonObject["routing"] = BuildRouting(options, list);
-        jsonObject["dns"] = BuildDns(options);
+        jsonObject["dns"] = BuildDns(options, profile);
         JsonObject jsonObject2 = jsonObject;
         if (profile.Mux)
         {
-            jsonObject2["policy"] = new JsonObject { ["levels"] = new JsonObject { ["0"] = new JsonObject
+            jsonObject2["policy"] = new JsonObject
             {
-                ["handshake"] = 4,
-                ["connIdle"] = 300
-            } } };
+                ["levels"] = new JsonObject
+                {
+                    ["0"] = new JsonObject
+                    {
+                        ["handshake"] = 4,
+                        ["connIdle"] = 300
+                    }
+                }
+            };
         }
         string json = jsonObject2.ToJsonString(new JsonSerializerOptions
         {
@@ -137,88 +144,88 @@ public static class XrayConfigBuilder
     {
         switch (p.Protocol)
         {
-        case ProfileProtocol.Vless:
-        {
-            JsonObject jsonObject3 = new JsonObject
-            {
-                ["id"] = p.Uuid,
-                ["encryption"] = "none"
-            };
-            if (!string.IsNullOrWhiteSpace(p.Flow))
-            {
-                jsonObject3["flow"] = p.Flow;
-            }
-            JsonObject jsonObject4 = new JsonObject();
-            jsonObject4["vnext"] = new JsonArray(new JsonObject
-            {
-                ["address"] = p.Address,
-                ["port"] = p.Port,
-                ["users"] = new JsonArray(jsonObject3)
-            });
-            return jsonObject4;
-        }
-        case ProfileProtocol.Vmess:
-        {
-            JsonObject jsonObject5 = new JsonObject();
-            jsonObject5["vnext"] = new JsonArray(new JsonObject
-            {
-                ["address"] = p.Address,
-                ["port"] = p.Port,
-                ["users"] = new JsonArray(new JsonObject
+            case ProfileProtocol.Vless:
                 {
-                    ["id"] = p.Uuid,
-                    ["alterId"] = p.AlterId,
-                    ["security"] = (string.IsNullOrWhiteSpace(p.VmessSecurity) ? "auto" : p.VmessSecurity)
-                })
-            });
-            return jsonObject5;
-        }
-        case ProfileProtocol.Trojan:
-        {
-            JsonObject jsonObject7 = new JsonObject();
-            jsonObject7["servers"] = new JsonArray(new JsonObject
-            {
-                ["address"] = p.Address,
-                ["port"] = p.Port,
-                ["password"] = p.Password
-            });
-            return jsonObject7;
-        }
-        case ProfileProtocol.Shadowsocks:
-        {
-            JsonObject jsonObject6 = new JsonObject();
-            jsonObject6["servers"] = new JsonArray(new JsonObject
-            {
-                ["address"] = p.Address,
-                ["port"] = p.Port,
-                ["method"] = p.Method,
-                ["password"] = p.Password,
-                ["uot"] = true
-            });
-            return jsonObject6;
-        }
-        case ProfileProtocol.Socks:
-        case ProfileProtocol.Http:
-        {
-            JsonObject jsonObject = new JsonObject
-            {
-                ["address"] = p.Address,
-                ["port"] = p.Port
-            };
-            if (!string.IsNullOrEmpty(p.Username))
-            {
-                jsonObject["users"] = new JsonArray(new JsonObject
+                    JsonObject jsonObject3 = new JsonObject
+                    {
+                        ["id"] = p.Uuid,
+                        ["encryption"] = "none"
+                    };
+                    if (!string.IsNullOrWhiteSpace(p.Flow))
+                    {
+                        jsonObject3["flow"] = p.Flow;
+                    }
+                    JsonObject jsonObject4 = new JsonObject();
+                    jsonObject4["vnext"] = new JsonArray(new JsonObject
+                    {
+                        ["address"] = p.Address,
+                        ["port"] = p.Port,
+                        ["users"] = new JsonArray(jsonObject3)
+                    });
+                    return jsonObject4;
+                }
+            case ProfileProtocol.Vmess:
                 {
-                    ["user"] = p.Username,
-                    ["pass"] = p.Password
-                });
-            }
-            JsonObject jsonObject2 = new JsonObject();
-            jsonObject2["servers"] = new JsonArray(jsonObject);
-            return jsonObject2;
-        }
-        default:
-            throw new NotSupportedException($"Protocol {p.Protocol} is not supported.");
+                    JsonObject jsonObject5 = new JsonObject();
+                    jsonObject5["vnext"] = new JsonArray(new JsonObject
+                    {
+                        ["address"] = p.Address,
+                        ["port"] = p.Port,
+                        ["users"] = new JsonArray(new JsonObject
+                        {
+                            ["id"] = p.Uuid,
+                            ["alterId"] = p.AlterId,
+                            ["security"] = (string.IsNullOrWhiteSpace(p.VmessSecurity) ? "auto" : p.VmessSecurity)
+                        })
+                    });
+                    return jsonObject5;
+                }
+            case ProfileProtocol.Trojan:
+                {
+                    JsonObject jsonObject7 = new JsonObject();
+                    jsonObject7["servers"] = new JsonArray(new JsonObject
+                    {
+                        ["address"] = p.Address,
+                        ["port"] = p.Port,
+                        ["password"] = p.Password
+                    });
+                    return jsonObject7;
+                }
+            case ProfileProtocol.Shadowsocks:
+                {
+                    JsonObject jsonObject6 = new JsonObject();
+                    jsonObject6["servers"] = new JsonArray(new JsonObject
+                    {
+                        ["address"] = p.Address,
+                        ["port"] = p.Port,
+                        ["method"] = p.Method,
+                        ["password"] = p.Password,
+                        ["uot"] = true
+                    });
+                    return jsonObject6;
+                }
+            case ProfileProtocol.Socks:
+            case ProfileProtocol.Http:
+                {
+                    JsonObject jsonObject = new JsonObject
+                    {
+                        ["address"] = p.Address,
+                        ["port"] = p.Port
+                    };
+                    if (!string.IsNullOrEmpty(p.Username))
+                    {
+                        jsonObject["users"] = new JsonArray(new JsonObject
+                        {
+                            ["user"] = p.Username,
+                            ["pass"] = p.Password
+                        });
+                    }
+                    JsonObject jsonObject2 = new JsonObject();
+                    jsonObject2["servers"] = new JsonArray(jsonObject);
+                    return jsonObject2;
+                }
+            default:
+                throw new NotSupportedException($"Protocol {p.Protocol} is not supported.");
         }
     }
 
@@ -236,43 +243,43 @@ public static class XrayConfigBuilder
         JsonObject jsonObject3 = jsonObject;
         switch (p.Transport)
         {
-        case Transport.WebSocket:
-            jsonObject3["wsSettings"] = new JsonObject
-            {
-                ["path"] = (string.IsNullOrWhiteSpace(p.Path) ? "/" : p.Path),
-                ["headers"] = new JsonObject { ["Host"] = (string.IsNullOrWhiteSpace(p.Host) ? p.Sni : p.Host) }
-            };
-            break;
-        case Transport.Grpc:
-            jsonObject3["grpcSettings"] = new JsonObject
-            {
-                ["serviceName"] = p.ServiceName,
-                ["multiMode"] = false
-            };
-            break;
-        case Transport.HttpUpgrade:
-            jsonObject3["httpupgradeSettings"] = new JsonObject
-            {
-                ["path"] = (string.IsNullOrWhiteSpace(p.Path) ? "/" : p.Path),
-                ["host"] = (string.IsNullOrWhiteSpace(p.Host) ? p.Sni : p.Host)
-            };
-            break;
-        case Transport.Xhttp:
-            jsonObject3["xhttpSettings"] = new JsonObject
-            {
-                ["path"] = (string.IsNullOrWhiteSpace(p.Path) ? "/" : p.Path),
-                ["host"] = (string.IsNullOrWhiteSpace(p.Host) ? p.Sni : p.Host),
-                ["mode"] = "auto"
-            };
-            break;
-        case Transport.Quic:
-            jsonObject3["quicSettings"] = new JsonObject
-            {
-                ["security"] = "none",
-                ["key"] = "",
-                ["header"] = new JsonObject { ["type"] = "none" }
-            };
-            break;
+            case Transport.WebSocket:
+                jsonObject3["wsSettings"] = new JsonObject
+                {
+                    ["path"] = (string.IsNullOrWhiteSpace(p.Path) ? "/" : p.Path),
+                    ["headers"] = new JsonObject { ["Host"] = (string.IsNullOrWhiteSpace(p.Host) ? p.Sni : p.Host) }
+                };
+                break;
+            case Transport.Grpc:
+                jsonObject3["grpcSettings"] = new JsonObject
+                {
+                    ["serviceName"] = p.ServiceName,
+                    ["multiMode"] = false
+                };
+                break;
+            case Transport.HttpUpgrade:
+                jsonObject3["httpupgradeSettings"] = new JsonObject
+                {
+                    ["path"] = (string.IsNullOrWhiteSpace(p.Path) ? "/" : p.Path),
+                    ["host"] = (string.IsNullOrWhiteSpace(p.Host) ? p.Sni : p.Host)
+                };
+                break;
+            case Transport.Xhttp:
+                jsonObject3["xhttpSettings"] = new JsonObject
+                {
+                    ["path"] = (string.IsNullOrWhiteSpace(p.Path) ? "/" : p.Path),
+                    ["host"] = (string.IsNullOrWhiteSpace(p.Host) ? p.Sni : p.Host),
+                    ["mode"] = "auto"
+                };
+                break;
+            case Transport.Quic:
+                jsonObject3["quicSettings"] = new JsonObject
+                {
+                    ["security"] = "none",
+                    ["key"] = "",
+                    ["header"] = new JsonObject { ["type"] = "none" }
+                };
+                break;
         }
         if (p.Security == SecurityLayer.Tls)
         {
@@ -412,7 +419,7 @@ public static class XrayConfigBuilder
         };
     }
 
-    private static JsonObject BuildDns(EngineOptions o)
+    private static JsonObject BuildDns(EngineOptions o, Profile profile)
     {
         JsonObject jsonObject = new JsonObject();
         jsonObject["servers"] = new JsonArray(new JsonObject
@@ -422,6 +429,22 @@ public static class XrayConfigBuilder
         }, "localhost");
         jsonObject["queryStrategy"] = (o.BlockIpv6 ? "UseIPv4" : "UseIP");
         jsonObject["disableFallback"] = true;
+
+        // Pin the address the audit checked. Without this the engine resolves the
+        // endpoint again at connect time, and a name whose records change in between
+        // (DNS rebinding, a hijacked record, a hostile resolver answer) would be
+        // dialled at an address nobody audited.
+        if (o.PinResolvedEndpoint
+            && !string.IsNullOrWhiteSpace(o.PinnedEndpointAddress)
+            && !string.IsNullOrWhiteSpace(profile.Address)
+            && !IPAddress.TryParse(profile.Address, out _))
+        {
+            jsonObject["hosts"] = new JsonObject
+            {
+                [profile.Address] = new JsonArray(o.PinnedEndpointAddress),
+            };
+        }
+
         return jsonObject;
     }
 
@@ -429,14 +452,14 @@ public static class XrayConfigBuilder
     {
         switch (level.ToLowerInvariant())
         {
-        case "debug":
-        case "info":
-        case "warning":
-        case "error":
-        case "none":
-            return level.ToLowerInvariant();
-        default:
-            return "warning";
+            case "debug":
+            case "info":
+            case "warning":
+            case "error":
+            case "none":
+                return level.ToLowerInvariant();
+            default:
+                return "warning";
         }
     }
 }

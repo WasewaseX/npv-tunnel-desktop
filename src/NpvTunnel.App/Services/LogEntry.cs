@@ -1,10 +1,11 @@
+using System.Globalization;
 using System;
 
 namespace NpvTunnel.App.Services;
 
 public sealed record LogEntry(DateTimeOffset Timestamp, LogLevel Level, string Source, string Message)
 {
-    public string Time => Timestamp.ToLocalTime().ToString("HH:mm:ss");
+    public string Time => Timestamp.ToLocalTime().ToString("HH:mm:ss", CultureInfo.CurrentCulture);
 
     public string LevelText => Level switch
     {

@@ -71,6 +71,21 @@ jobs:
       - name: Build (Release)
         run: dotnet build NpvTunnel.sln -c Release --no-restore
 
+      - name: Fetch the vendor sample container
+        shell: pwsh
+        # The same pinned upstream container as the Linux job, verified by digest before
+        # it is handed to the tests, so a format change upstream shows up as a failure
+        # rather than as a test that quietly skipped itself.
+        run: |
+          $url = 'https://raw.githubusercontent.com/masihyeganeh/npvs/3c113065a710941d1ac4d4401ec732242e4e9811/testdata/cfg.npvt'
+          $path = Join-Path $env:RUNNER_TEMP 'sample.npvt'
+          Invoke-WebRequest -Uri $url -OutFile $path
+          $digest = (Get-FileHash -Path $path -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($digest -ne '28dbb6fe183405eefec3581105621c56761019b56898092b327d2d87c622d9a6') {
+            throw "Vendor sample digest mismatch: $digest"
+          }
+          "NPVT_REAL_SAMPLE=$path" >> $env:GITHUB_ENV
+
       - name: Test
         run: |
           dotnet test tests/NpvTunnel.Core.Tests/NpvTunnel.Core.Tests.csproj -c Release --no-build --logger "console;verbosity=normal"
@@ -147,6 +162,24 @@ jobs:
       - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
           dotnet-version: '8.0.x'
+
+      - name: Formatting is not negotiable
+        # The build already refuses warnings; this keeps the whitespace and style
+        # rules in .editorconfig enforced too, so a review never has to mention them.
+        run: dotnet format NpvTunnel.sln --verify-no-changes --severity warn
+
+      - name: Fetch the vendor sample container
+        shell: bash
+        # A real channel container from the upstream npvs project, pinned by commit and
+        # by digest. The test runs below see NPVT_REAL_SAMPLE, so the vendor format is
+        # checked against a genuine file on every push and not only against the
+        # sanitised fixture committed in tests/fixtures.
+        run: |
+          set -eu
+          url="https://raw.githubusercontent.com/masihyeganeh/npvs/3c113065a710941d1ac4d4401ec732242e4e9811/testdata/cfg.npvt"
+          curl -sSL --retry 3 -o "$RUNNER_TEMP/sample.npvt" "$url"
+          echo "28dbb6fe183405eefec3581105621c56761019b56898092b327d2d87c622d9a6  $RUNNER_TEMP/sample.npvt" | sha256sum -c -
+          echo "NPVT_REAL_SAMPLE=$RUNNER_TEMP/sample.npvt" >> "$GITHUB_ENV"
 
       - name: Test
         run: |

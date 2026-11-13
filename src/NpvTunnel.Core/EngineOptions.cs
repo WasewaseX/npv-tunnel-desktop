@@ -32,6 +32,18 @@ public sealed class EngineOptions
 
     public bool EnableMux { get; set; }
 
+    /// <summary>
+    /// When the endpoint hostname has been resolved and every answer is a public
+    /// address, the generated config pins that address in the engine's DNS table.
+    /// The engine then dials the address that was audited instead of resolving the
+    /// name again, which is what closes the gap between "the name looked fine" and
+    /// "the address actually used was fine".
+    /// </summary>
+    public bool PinResolvedEndpoint { get; set; } = true;
+
+    /// <summary>The audited address to pin; empty when nothing was pinned.</summary>
+    public string PinnedEndpointAddress { get; set; } = string.Empty;
+
     public void Validate()
     {
         if (!Validators.IsUsableLocalPort(SocksPort) || !Validators.IsUsableLocalPort(HttpPort))

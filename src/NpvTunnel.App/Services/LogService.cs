@@ -70,15 +70,15 @@ public sealed class LogService
             }
         }
         Application current = Application.Current;
-        Dispatcher val = ((current != null) ? ((DispatcherObject)current).Dispatcher : null);
+        Dispatcher? val = ((current != null) ? ((DispatcherObject)current).Dispatcher : null);
         if (val == null || val.CheckAccess())
         {
-            this.EntryAdded?.Invoke(this, entry);
+            this.EntryAdded?.Invoke(this, entry!);
             return;
         }
         val.BeginInvoke((Delegate)(Action)delegate
         {
-            this.EntryAdded?.Invoke(this, entry);
+            this.EntryAdded?.Invoke(this, entry!);
         }, Array.Empty<object>());
     }
 

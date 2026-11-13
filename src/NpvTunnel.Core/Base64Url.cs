@@ -17,14 +17,14 @@ public static class Base64Url
         string text = input.Trim().Replace('-', '+').Replace('_', '/');
         switch (text.Length % 4)
         {
-        case 2:
-            text += "==";
-            break;
-        case 3:
-            text += "=";
-            break;
-        case 1:
-            throw new FormatException("Invalid base64 length.");
+            case 2:
+                text += "==";
+                break;
+            case 3:
+                text += "=";
+                break;
+            case 1:
+                throw new FormatException("Invalid base64 length.");
         }
         return Convert.FromBase64String(text);
     }

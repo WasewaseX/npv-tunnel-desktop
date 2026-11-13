@@ -47,33 +47,33 @@ public static class UriParser
             ImportResult result;
             switch (text3)
             {
-            case "vless":
-                result = ParseVless(body);
-                break;
-            case "vmess":
-                result = ParseVmess(body);
-                break;
-            case "trojan":
-                result = ParseTrojan(body);
-                break;
-            case "ss":
-                result = ParseShadowsocks(body);
-                break;
-            case "socks":
-            case "socks5":
-                result = ParseSocks(body);
-                break;
-            case "https":
-            case "http":
-                result = ParseHttp(body);
-                break;
-            case "hysteria2":
-            case "hy2":
-                result = ParseHysteria2(body);
-                break;
-            default:
-                result = ImportResult.Fail(ImportError.UnknownFormat, "Scheme '" + text3 + "' is not supported.");
-                break;
+                case "vless":
+                    result = ParseVless(body);
+                    break;
+                case "vmess":
+                    result = ParseVmess(body);
+                    break;
+                case "trojan":
+                    result = ParseTrojan(body);
+                    break;
+                case "ss":
+                    result = ParseShadowsocks(body);
+                    break;
+                case "socks":
+                case "socks5":
+                    result = ParseSocks(body);
+                    break;
+                case "https":
+                case "http":
+                    result = ParseHttp(body);
+                    break;
+                case "hysteria2":
+                case "hy2":
+                    result = ParseHysteria2(body);
+                    break;
+                default:
+                    result = ImportResult.Fail(ImportError.UnknownFormat, "Scheme '" + text3 + "' is not supported.");
+                    break;
             }
             return result;
         }
@@ -292,20 +292,20 @@ public static class UriParser
     {
         switch (method.ToLowerInvariant())
         {
-        case "aes-128-gcm":
-        case "aes-256-gcm":
-        case "2022-blake3-aes-128-gcm":
-        case "2022-blake3-aes-256-gcm":
-        case "xchacha20-ietf-poly1305":
-        case "chacha20-poly1305":
-        case "chacha20-ietf-poly1305":
-        case "xchacha20-poly1305":
-        case "2022-blake3-chacha20-poly1305":
-        case "none":
-        case "plain":
-            return true;
-        default:
-            return false;
+            case "aes-128-gcm":
+            case "aes-256-gcm":
+            case "2022-blake3-aes-128-gcm":
+            case "2022-blake3-aes-256-gcm":
+            case "xchacha20-ietf-poly1305":
+            case "chacha20-poly1305":
+            case "chacha20-ietf-poly1305":
+            case "xchacha20-poly1305":
+            case "2022-blake3-chacha20-poly1305":
+            case "none":
+            case "plain":
+                return true;
+            default:
+                return false;
         }
     }
 
@@ -406,20 +406,20 @@ public static class UriParser
         }
         switch (profile.Protocol)
         {
-        case ProfileProtocol.Vless:
-        case ProfileProtocol.Vmess:
-            if (string.IsNullOrWhiteSpace(profile.Uuid))
-            {
-                return ImportResult.Fail(ImportError.MissingCredential, "The configuration has no UUID.");
-            }
-            break;
-        case ProfileProtocol.Trojan:
-        case ProfileProtocol.Shadowsocks:
-            if (string.IsNullOrWhiteSpace(profile.Password))
-            {
-                return ImportResult.Fail(ImportError.MissingCredential, "The configuration has no password.");
-            }
-            break;
+            case ProfileProtocol.Vless:
+            case ProfileProtocol.Vmess:
+                if (string.IsNullOrWhiteSpace(profile.Uuid))
+                {
+                    return ImportResult.Fail(ImportError.MissingCredential, "The configuration has no UUID.");
+                }
+                break;
+            case ProfileProtocol.Trojan:
+            case ProfileProtocol.Shadowsocks:
+                if (string.IsNullOrWhiteSpace(profile.Password))
+                {
+                    return ImportResult.Fail(ImportError.MissingCredential, "The configuration has no password.");
+                }
+                break;
         }
         return ImportResult.Ok(profile, warnings.ToArray());
     }
@@ -440,24 +440,24 @@ public static class UriParser
             SecurityLayer security;
             switch (text3)
             {
-            default:
-                if (text3.Length == 0)
-                {
-                    goto case "none";
-                }
-                goto case null;
-            case "tls":
-                security = SecurityLayer.Tls;
-                break;
-            case "reality":
-                security = SecurityLayer.Reality;
-                break;
-            case "none":
-                security = SecurityLayer.None;
-                break;
-            case null:
-                security = profile.Security;
-                break;
+                default:
+                    if (text3.Length == 0)
+                    {
+                        goto case "none";
+                    }
+                    goto case null;
+                case "tls":
+                    security = SecurityLayer.Tls;
+                    break;
+                case "reality":
+                    security = SecurityLayer.Reality;
+                    break;
+                case "none":
+                    security = SecurityLayer.None;
+                    break;
+                case null:
+                    security = profile.Security;
+                    break;
             }
             profile.Security = security;
         }
@@ -501,25 +501,25 @@ public static class UriParser
     {
         switch (value.ToLowerInvariant())
         {
-        case "raw":
-        case "tcp":
-        case "":
-            return Transport.Tcp;
-        case "websocket":
-        case "ws":
-            return Transport.WebSocket;
-        case "gun":
-        case "grpc":
-            return Transport.Grpc;
-        case "httpupgrade":
-            return Transport.HttpUpgrade;
-        case "splithttp":
-        case "xhttp":
-            return Transport.Xhttp;
-        case "quic":
-            return Transport.Quic;
-        default:
-            return UnknownTransport(value, warnings);
+            case "raw":
+            case "tcp":
+            case "":
+                return Transport.Tcp;
+            case "websocket":
+            case "ws":
+                return Transport.WebSocket;
+            case "gun":
+            case "grpc":
+                return Transport.Grpc;
+            case "httpupgrade":
+                return Transport.HttpUpgrade;
+            case "splithttp":
+            case "xhttp":
+                return Transport.Xhttp;
+            case "quic":
+                return Transport.Quic;
+            default:
+                return UnknownTransport(value, warnings);
         }
     }
 
@@ -637,7 +637,7 @@ public static class UriParser
 
     private static string Q(Dictionary<string, string> query, string key)
     {
-        if (!query.TryGetValue(key, out string value))
+        if (!query.TryGetValue(key, out string? value))
         {
             return string.Empty;
         }
@@ -687,22 +687,22 @@ public static class UriParser
         }
         switch (value.ValueKind)
         {
-        case JsonValueKind.Number:
-        {
-            if (value.TryGetInt32(out var value2))
-            {
-                return value2;
-            }
-            break;
-        }
-        case JsonValueKind.String:
-        {
-            if (int.TryParse(value.GetString(), out var result))
-            {
-                return result;
-            }
-            break;
-        }
+            case JsonValueKind.Number:
+                {
+                    if (value.TryGetInt32(out var value2))
+                    {
+                        return value2;
+                    }
+                    break;
+                }
+            case JsonValueKind.String:
+                {
+                    if (int.TryParse(value.GetString(), out var result))
+                    {
+                        return result;
+                    }
+                    break;
+                }
         }
         return fallback;
     }

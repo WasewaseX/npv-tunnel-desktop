@@ -14,10 +14,17 @@
     <PackageReference Include="xunit" Version="2.9.2" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
     <PackageReference Include="coverlet.collector" Version="6.0.2" />
+    <PackageReference Include="Xunit.SkippableFact" Version="1.4.13" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\NpvTunnel.Core\NpvTunnel.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- A vendor-format container with every real endpoint replaced, so the decoder
+         path is covered by a committed artefact as well as by the upstream sample. -->
+    <None Include="..\fixtures\*" Link="fixtures\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

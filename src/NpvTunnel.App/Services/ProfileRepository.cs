@@ -31,13 +31,13 @@ public sealed class ProfileRepository
 
     public Profile? GetProfile(Guid id)
     {
-        StoredProfile storedProfile = _items.FirstOrDefault((StoredProfile p) => p.Id == id);
-        Profile profile = storedProfile?.Document.ToProfile();
+        StoredProfile? storedProfile = _items.FirstOrDefault((StoredProfile p) => p.Id == id);
+        Profile? profile = storedProfile?.Document.ToProfile();
         if (profile == null)
         {
             return null;
         }
-        return WithMetadata(profile, storedProfile);
+        return WithMetadata(profile, storedProfile!);
     }
 
     public StoredProfile? Find(Guid id)
@@ -60,7 +60,7 @@ public sealed class ProfileRepository
 
     public void Remove(Guid id)
     {
-        StoredProfile storedProfile = _items.FirstOrDefault((StoredProfile p) => p.Id == id);
+        StoredProfile? storedProfile = _items.FirstOrDefault((StoredProfile p) => p.Id == id);
         if (storedProfile != null)
         {
             _items.Remove(storedProfile);
@@ -71,7 +71,7 @@ public sealed class ProfileRepository
 
     public void UpdatePing(Guid id, long milliseconds)
     {
-        StoredProfile storedProfile = _items.FirstOrDefault((StoredProfile p) => p.Id == id);
+        StoredProfile? storedProfile = _items.FirstOrDefault((StoredProfile p) => p.Id == id);
         if (storedProfile != null)
         {
             storedProfile.LastPingMs = milliseconds;
@@ -81,7 +81,7 @@ public sealed class ProfileRepository
 
     public void MarkConnected(Guid id)
     {
-        StoredProfile storedProfile = _items.FirstOrDefault((StoredProfile p) => p.Id == id);
+        StoredProfile? storedProfile = _items.FirstOrDefault((StoredProfile p) => p.Id == id);
         if (storedProfile != null)
         {
             storedProfile.LastConnectedAt = DateTimeOffset.Now;
@@ -98,14 +98,14 @@ public sealed class ProfileRepository
 
     private void Load()
     {
-        string text = SecretStore.LoadEncrypted(AppPaths.ProfilesFile);
+        string? text = SecretStore.LoadEncrypted(AppPaths.ProfilesFile);
         if (string.IsNullOrWhiteSpace(text))
         {
             return;
         }
         try
         {
-            List<StoredProfile> list = JsonSerializer.Deserialize<List<StoredProfile>>(text, Options);
+            List<StoredProfile>? list = JsonSerializer.Deserialize<List<StoredProfile>>(text, Options);
             if (list != null)
             {
                 _items.AddRange(list);

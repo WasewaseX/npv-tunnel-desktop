@@ -27,7 +27,15 @@ public static class ConfigAudit
     /// never reaches the engine; the profile is still importable so the user can see
     /// it and read the reason.
     /// </summary>
-    public static IReadOnlyList<Finding> Review(Profile profile)
+    public static IReadOnlyList<Finding> Review(Profile profile) => Review(profile, resolution: null);
+
+    /// <summary>
+    /// Same review, with what the endpoint hostname actually resolves to. A literal
+    /// address is checked on its own; a hostname can only be judged once it has been
+    /// resolved, which is why connecting resolves it first and refuses private
+    /// answers instead of trusting the name.
+    /// </summary>
+    public static IReadOnlyList<Finding> Review(Profile profile, EndpointResolver.Resolution? resolution)
     {
         var findings = new List<Finding>();
 
@@ -36,6 +44,23 @@ public static class ConfigAudit
             findings.Add(new Finding(
                 Severity.Refused,
                 $"'{profile.Address}' is a private, loopback or link-local address. A public configuration that points at your own network is either broken or trying to reach something inside it."));
+        }
+
+        if (resolution is not null && !resolution.IsLiteral)
+        {
+            if (resolution.HasPrivate)
+            {
+                string addresses = string.Join(", ", resolution.PrivateAddresses);
+                findings.Add(new Finding(
+                    Severity.Refused,
+                    $"'{resolution.Host}' resolves to {addresses}, which is inside a private or link-local range. A public configuration whose hostname points back into your network is either broken or an attempt to reach something on it, and DNS can be changed after the config was shared."));
+            }
+            else if (!resolution.Resolved)
+            {
+                findings.Add(new Finding(
+                    Severity.Warning,
+                    $"'{resolution.Host}' could not be resolved from this machine ({resolution.Failure}), so it has not been checked against private addresses. The tunnel will resolve it at connect time."));
+            }
         }
 
         bool encrypted = profile.Security is SecurityLayer.Tls or SecurityLayer.Reality;
@@ -120,8 +145,9 @@ public static class ConfigAudit
 
     /// <summary>
     /// Loopback, RFC1918, carrier-grade NAT, link-local and unique-local literals.
-    /// Hostnames are not resolved here: resolution at connect time is the engine's
-    /// job, and resolving in the UI thread would leak DNS.
+    /// A hostname is not judged here - use <see cref="EndpointResolver"/> for that,
+    /// because a name can resolve anywhere and the answer can change after the
+    /// configuration was shared.
     /// </summary>
     public static bool IsPrivateEndpoint(string? host)
     {
@@ -130,34 +156,6 @@ public static class ConfigAudit
             return false;
         }
 
-        string value = host.Trim('[', ']');
-
-        if (!IPAddress.TryParse(value, out IPAddress? address))
-        {
-            return false;
-        }
-
-        if (IPAddress.IsLoopback(address))
-        {
-            return true;
-        }
-
-        if (address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
-        {
-            byte[] b = address.GetAddressBytes();
-            return b[0] == 10
-                || (b[0] == 172 && b[1] >= 16 && b[1] <= 31)
-                || (b[0] == 192 && b[1] == 168)
-                || (b[0] == 169 && b[1] == 254)
-                || (b[0] == 100 && b[1] >= 64 && b[1] <= 127)
-                || b[0] == 0
-                || b[0] >= 224;
-        }
-
-        byte[] v6 = address.GetAddressBytes();
-        return address.IsIPv6LinkLocal
-            || address.IsIPv6SiteLocal
-            || (v6[0] & 0xFE) == 0xFC
-            || (v6[0] == 0x20 && v6[1] == 0x01 && v6[2] == 0x0D && v6[3] == 0xB8);
+        return IPAddress.TryParse(host.Trim().Trim('[', ']'), out IPAddress? address) && address.IsPrivate();
     }
 }

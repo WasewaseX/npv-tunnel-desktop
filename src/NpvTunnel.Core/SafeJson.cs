@@ -70,38 +70,38 @@ public static class SafeJson
             }
             switch (jsonElement.ValueKind)
             {
-            case JsonValueKind.String:
-            {
-                string @string = jsonElement.GetString();
-                if (@string != null && @string.Length > 8192)
-                {
-                    throw new JsonStructureException($"A string field is {@string.Length} characters long, the limit is {8192}.");
-                }
-                break;
-            }
-            case JsonValueKind.Object:
-            {
-                HashSet<string> hashSet = new HashSet<string>(StringComparer.Ordinal);
-                foreach (JsonProperty item in jsonElement.EnumerateObject())
-                {
-                    if (item.Name.Length > 256)
+                case JsonValueKind.String:
                     {
-                        throw new JsonStructureException("A property name is longer than 256 characters.");
+                        string? @string = jsonElement.GetString();
+                        if (@string != null && @string.Length > 8192)
+                        {
+                            throw new JsonStructureException($"A string field is {@string.Length} characters long, the limit is {8192}.");
+                        }
+                        break;
                     }
-                    if (!hashSet.Add(item.Name))
+                case JsonValueKind.Object:
                     {
-                        throw new JsonStructureException("Duplicate property '" + item.Name + "'.");
+                        HashSet<string> hashSet = new HashSet<string>(StringComparer.Ordinal);
+                        foreach (JsonProperty item in jsonElement.EnumerateObject())
+                        {
+                            if (item.Name.Length > 256)
+                            {
+                                throw new JsonStructureException("A property name is longer than 256 characters.");
+                            }
+                            if (!hashSet.Add(item.Name))
+                            {
+                                throw new JsonStructureException("Duplicate property '" + item.Name + "'.");
+                            }
+                            stack.Push(item.Value);
+                        }
+                        break;
                     }
-                    stack.Push(item.Value);
-                }
-                break;
-            }
-            case JsonValueKind.Array:
-                foreach (JsonElement item2 in jsonElement.EnumerateArray())
-                {
-                    stack.Push(item2);
-                }
-                break;
+                case JsonValueKind.Array:
+                    foreach (JsonElement item2 in jsonElement.EnumerateArray())
+                    {
+                        stack.Push(item2);
+                    }
+                    break;
             }
         }
     }

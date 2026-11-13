@@ -36,7 +36,7 @@ public static class EngineInstaller
             log.Error("engine", "Engine download failed its SHA-256 check and was discarded.");
             throw new EngineException("The downloaded engine does not match the pinned digest. Nothing was installed.");
         }
-        log.Info("engine", "Engine archive verified (sha256 " + text.Substring(0, 16) + "…), extracting.");
+        log.Info("engine", string.Concat("Engine archive verified (sha256 ", text.AsSpan(0, 16), "…), extracting."));
         string temporary = Path.Combine(targetDirectory, "extract-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(temporary);
         try

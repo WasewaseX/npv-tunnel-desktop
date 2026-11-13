@@ -5,6 +5,7 @@ using System.Security.Cryptography;
 using System.Text;
 using NpvTunnel.Core.Engine;
 using NpvTunnel.Core.Models;
+using NpvTunnel.Core.Security;
 
 namespace NpvTunnel.Cli;
 
@@ -27,37 +28,24 @@ public sealed class EngineRunner : IDisposable
     public string BinaryPath { get; private set; }
 
     /// <summary>
-    /// Digests are published in the release tarball as core/ENGINE.sha256. A binary
-    /// that does not match is refused rather than executed.
+    /// Verified against the digest compiled into this build. The core/ENGINE.sha256 in
+    /// the release archive is only accepted when it agrees with that pin: a digest file
+    /// next to the binary can be swapped along with the binary, so it cannot be the
+    /// authority. <paramref name="trustCustomEngine"/> is the explicit opt-in a user
+    /// needs to run an engine this build knows nothing about.
     /// </summary>
-    public bool VerifyDigest(out string message)
+    public bool VerifyDigest(out string message, bool trustCustomEngine = false)
     {
-        message = string.Empty;
-        if (!File.Exists(BinaryPath))
-        {
-            message = $"The tunnel engine was not found at {BinaryPath}.";
-            return false;
-        }
+        EngineIntegrity.Verdict verdict = trustCustomEngine
+            ? EngineIntegrity.VerifyCustom(BinaryPath)
+            : EngineIntegrity.VerifyBundled(BinaryPath, EngineIntegrity.EmbeddedDigest());
 
-        string digestFile = Path.Combine(Path.GetDirectoryName(BinaryPath) ?? ".", "ENGINE.sha256");
-        if (!File.Exists(digestFile))
-        {
-            message = "No ENGINE.sha256 next to the binary, so the engine cannot be verified.";
-            return false;
-        }
-
-        string expected = File.ReadAllText(digestFile).Split(' ', StringSplitOptions.RemoveEmptyEntries)[0].Trim().ToLowerInvariant();
-        using FileStream stream = File.OpenRead(BinaryPath);
-        string actual = Convert.ToHexString(SHA256.HashData(stream)).ToLowerInvariant();
-        if (!string.Equals(expected, actual, StringComparison.Ordinal))
-        {
-            message = $"Engine digest mismatch: expected {expected[..12]}…, got {actual[..12]}…";
-            return false;
-        }
-
-        message = "Engine digest verified.";
-        return true;
+        message = verdict.Message;
+        return verdict.Trusted;
     }
+
+    /// <summary>True when the binary was chosen by the user rather than shipped with the release.</summary>
+    public bool IsCustom { get; init; }
 
     public string WriteConfig(Profile profile, EngineOptions options)
     {
@@ -136,6 +124,11 @@ public sealed class EngineRunner : IDisposable
             return false;
         }
 
+        // The core reads its config once, at startup. Shredding the file now means the
+        // credentials it carries are on disk for milliseconds instead of for the whole
+        // session, and a crash cannot leave them behind.
+        ShredConfig();
+
         message = "Engine started.";
         return true;
     }
@@ -167,21 +160,33 @@ public sealed class EngineRunner : IDisposable
         _disposed = true;
         Stop();
         _process?.Dispose();
+        ShredConfig();
+    }
 
-        if (_configPath is not null && File.Exists(_configPath))
+    /// <summary>Overwrites and removes the generated config, then its private directory.</summary>
+    public void ShredConfig()
+    {
+        string? configPath = _configPath;
+        _configPath = null;
+        if (configPath is null)
         {
-            try
+            return;
+        }
+
+        try
+        {
+            SecretShredder.ShredFile(configPath);
+            string? dir = Path.GetDirectoryName(configPath);
+            if (dir is not null && Directory.Exists(dir))
             {
-                File.Delete(_configPath);
-                string? dir = Path.GetDirectoryName(_configPath);
-                if (dir is not null && Directory.Exists(dir))
-                {
-                    Directory.Delete(dir, recursive: true);
-                }
+                Directory.Delete(dir, recursive: true);
             }
-            catch (IOException)
-            {
-            }
+        }
+        catch (IOException)
+        {
+        }
+        catch (UnauthorizedAccessException)
+        {
         }
     }
 }

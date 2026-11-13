@@ -76,7 +76,7 @@ public sealed class SingleInstance : IDisposable
                 {
                     await server.WaitForConnectionAsync(ct).ConfigureAwait(continueOnCapturedContext: false);
                     using StreamReader reader = new StreamReader(server, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
-                    string text = await reader.ReadLineAsync(ct).ConfigureAwait(continueOnCapturedContext: false);
+                    string? text = await reader.ReadLineAsync(ct).ConfigureAwait(continueOnCapturedContext: false);
                     if (!string.IsNullOrWhiteSpace(text) && text.Length < 4096 && File.Exists(text))
                     {
                         this.FileReceived?.Invoke(text);

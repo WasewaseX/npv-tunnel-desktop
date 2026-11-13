@@ -78,22 +78,30 @@ public sealed class ContainerAndStoreTests
             File.WriteAllText(engine, "not a real engine");
 
             var runner = new EngineRunner(engine);
-            Assert.False(runner.VerifyDigest(out string missing), "a binary without a digest file must not be trusted");
-            Assert.Contains("ENGINE.sha256", missing, StringComparison.Ordinal);
 
-            string real = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(engine))).ToLowerInvariant();
-            File.WriteAllText(Path.Combine(dir, "ENGINE.sha256"), real + "  xray\n");
-            Assert.True(runner.VerifyDigest(out _));
+            // The digest compiled into this build is what decides. A binary the build was
+            // not tested with is refused whether or not it brought a digest of its own.
+            Assert.False(runner.VerifyDigest(out string unknown), "a binary without a matching pin must not be trusted");
+            Assert.Contains("official release", unknown, StringComparison.OrdinalIgnoreCase);
 
-            File.WriteAllText(Path.Combine(dir, "ENGINE.sha256"), new string('0', 64) + "  xray\n");
-            Assert.False(runner.VerifyDigest(out string mismatch));
-            Assert.Contains("mismatch", mismatch, StringComparison.OrdinalIgnoreCase);
+            // The attack: pair the binary with a digest it agrees with. The sidecar is not
+            // the authority, so this stays refused and says why.
+            string selfDigest = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(engine))).ToLowerInvariant();
+            File.WriteAllText(Path.Combine(dir, "ENGINE.sha256"), selfDigest + "  xray\n");
+            Assert.False(runner.VerifyDigest(out string tampered));
+            Assert.Contains("ENGINE.sha256", tampered, StringComparison.Ordinal);
+
+            // A user who has checked the file themselves can opt in, and is told that the
+            // pin did not cover it.
+            Assert.True(runner.VerifyDigest(out string custom, trustCustomEngine: true));
+            Assert.Contains("the build's pin does not cover it", custom, StringComparison.OrdinalIgnoreCase);
         }
         finally
         {
             Directory.Delete(dir, recursive: true);
         }
     }
+
 }
 
 public sealed class AuditTests

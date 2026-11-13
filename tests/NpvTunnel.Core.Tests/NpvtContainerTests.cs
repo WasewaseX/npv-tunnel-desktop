@@ -3,6 +3,7 @@ using System.Text;
 using NpvTunnel.Core.Import;
 using NpvTunnel.Core.Models;
 using Xunit;
+using Xunit.Sdk;
 
 namespace NpvTunnel.Core.Tests;
 
@@ -125,19 +126,51 @@ public sealed class NpvtContainerTests
     }
 
     /// <summary>
-    /// Optional check against a real channel container. CI has no sample, so it is
-    /// skipped there; put a .npvt at the NPvtRealSample environment path to run it.
+    /// <summary>
+    /// The committed vendor fixture: a container handed out by a channel, with every
+    /// endpoint, port and credential replaced by a placeholder. It is the same shape -
+    /// three sealed blocks, seventeen profiles, the nested Xray JSON inside each - so the
+    /// decryptor, the wrapper reader and the profile mapper are all exercised by an
+    /// artefact that is always present.
     /// </summary>
     [Fact]
+    public void VendorFixture_DecryptsAndYieldsEveryProfile()
+    {
+        string path = Path.Combine(AppContext.BaseDirectory, "fixtures", "vendor-channel-sanitized.npvt");
+        Assert.True(File.Exists(path), $"missing fixture {path}");
+
+        ImportBatch batch = NpvtImporter.ImportAll(File.ReadAllText(path), null, Path.GetFileName(path));
+
+        Assert.True(batch.Success, batch.Message);
+        Assert.Equal(17, batch.ImportedCount);
+        Assert.Equal(0, batch.FailedCount);
+        Assert.All(batch.Profiles, profile =>
+        {
+            Assert.Matches(@"^fixture-\d{2}\.example\.com$", profile.Address);
+            Assert.InRange(profile.Port, 4001, 4017);
+            Assert.False(string.IsNullOrWhiteSpace(profile.Name));
+            Assert.NotEqual("x", profile.Security.ToString().ToLowerInvariant()[..1]);
+        });
+
+        // The fixture must never carry somebody's working subscription.
+        string raw = File.ReadAllText(path);
+        Assert.DoesNotContain("qarvian", raw, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Optional check against the upstream npvs sample container. CI downloads it and
+    /// sets <c>NPVT_REAL_SAMPLE</c>, which makes this a real compatibility test on every
+    /// push; when the variable is absent the test is reported as skipped instead of
+    /// quietly passing.
+    /// </summary>
+    [SkippableFact]
     public void RealContainer_Decrypts_WhenSampleIsAvailable()
     {
         string? path = Environment.GetEnvironmentVariable("NPVT_REAL_SAMPLE");
-        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
-        {
-            return;
-        }
+        Skip.If(string.IsNullOrWhiteSpace(path) || !File.Exists(path),
+            "NPVT_REAL_SAMPLE is not set; the vendor sample was not available for this run.");
 
-        ImportBatch batch = NpvtImporter.ImportAll(File.ReadAllText(path), null, Path.GetFileName(path));
+        ImportBatch batch = NpvtImporter.ImportAll(File.ReadAllText(path!), null, Path.GetFileName(path!));
 
         Assert.True(batch.Success, batch.Message);
         Assert.True(batch.ImportedCount > 1, $"expected several profiles, got {batch.ImportedCount}: {batch.Message}");

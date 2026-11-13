@@ -25,7 +25,7 @@ public static class SecretStore
         {
             CryptographicOperations.ZeroMemory(bytes);
         }
-        string directoryName = Path.GetDirectoryName(path);
+        string? directoryName = Path.GetDirectoryName(path);
         if (!string.IsNullOrEmpty(directoryName))
         {
             Directory.CreateDirectory(directoryName);

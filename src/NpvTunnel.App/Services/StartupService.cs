@@ -13,7 +13,7 @@ public static class StartupService
 
     public static bool IsEnabled()
     {
-        using RegistryKey registryKey = Registry.CurrentUser.OpenSubKey("Software\\Microsoft\\Windows\\CurrentVersion\\Run");
+        using RegistryKey? registryKey = Registry.CurrentUser.OpenSubKey("Software\\Microsoft\\Windows\\CurrentVersion\\Run");
         return registryKey?.GetValue("NpvTunnel") is string;
     }
 

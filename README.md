@@ -111,13 +111,21 @@ plain `net8.0` so they are unit-tested on any runner.
 ## Testing
 
 ```bash
-dotnet test                                            # 107 tests
+dotnet test                                            # 134 tests
+dotnet format NpvTunnel.sln --verify-no-changes        # the formatting gate CI runs
 pwsh scripts/check-themes.ps1                          # both palettes define what the views ask for
-pwsh scripts/publish-linux.ps1 -Version 1.1.0 -SkipTests   # builds the Linux archive
+pwsh scripts/publish-linux.ps1 -Version 1.1.1 -SkipTests   # builds the Linux archive
 ```
 
-107 tests cover the parsers, the importer, the container decryption, the safety audit, the
-locked envelope, the config builder, redaction and validation.
+134 tests cover the parsers, the importer, the container decryption (against a committed
+vendor-format fixture and, in CI, against a real container from upstream), the safety
+audit, endpoint resolution and pinning, engine integrity, the shredder, the locked
+envelope, the config builder, redaction and validation.
+
+The build treats warnings as errors and runs the recommended analyzers, so a nullable or
+analysis finding is a build failure rather than a note at the bottom of the log. Set
+`NPVT_REAL_SAMPLE=/path/to/cfg.npvt` to run the upstream-container test locally; without
+it the test reports as skipped instead of passing quietly.
 
 The engine configuration builder is covered by tests that assert on the generated JSON —
 including that inbounds can only bind to loopback and that IPv6/QUIC leak rules are present.
@@ -130,7 +138,13 @@ fixes. Short version:
 * imports are treated as hostile input (size, depth, duplicate-key and field validation);
 * every imported configuration is audited first: loopback/private endpoints, REALITY without
   a public key and plaintext VLESS to a public host are refused rather than dialled;
-* the tunnel core is verified against a SHA-256 pin before every exec;
+* the tunnel core is verified against a SHA-256 pin compiled into the build before every
+  exec - a replaced `ENGINE.sha256` cannot make an unknown binary trusted, and the window
+  refuses to run anything but the bundled engine;
+* a config's hostname is resolved once, the answer is audited like a literal address, and
+  the engine is pinned to the address that was audited instead of resolving the name again;
+* the engine's config file exists in the clear only while the engine is starting, then it is
+  overwritten and deleted, and stale copies are swept at startup;
 * the UI never runs with admin rights and never writes a machine-wide setting;
 * no secret is ever written to disk in the clear, and no log line leaves unredacted.
 

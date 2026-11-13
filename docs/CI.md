@@ -110,3 +110,15 @@ iscc "/DMyAppVersion=1.0.0" installer\NpvTunnel.iss
 
 The repository never contains binaries: `core\` is fetched and verified at build
 time, and `dist\` plus `publish\` are ignored.
+
+## What the pipeline refuses to skip
+
+* **Warnings.** `Directory.Build.props` sets `TreatWarningsAsErrors` and turns on the
+  recommended analyzer set, so nullable warnings and analysis findings fail the build.
+  A handful of stylistic rules (CA1507, CA1707, CA1822, CA1001, CA1845) are switched off in
+  `.editorconfig` with a comment each; nothing in the security or reliability band is.
+* **Formatting.** `dotnet format NpvTunnel.sln --verify-no-changes` runs before the tests.
+* **The vendor sample.** Both the Windows and the Linux job download the upstream npvs
+  test container by commit and verify its SHA-256, then export `NPVT_REAL_SAMPLE`. The test
+  that reads it is a `SkippableFact`: skipped locally when the variable is absent, but a
+  hard failure in CI if the download or the digest is wrong.

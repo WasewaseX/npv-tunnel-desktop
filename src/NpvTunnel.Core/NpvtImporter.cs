@@ -63,7 +63,7 @@ public static class NpvtImporter
             {
                 return ImportResult.Fail(ImportError.EncryptedNeedsPassword, "This .npvt file is locked. Enter the passphrase provided by the config author.");
             }
-            string text3 = LockedConfig.TryUnlock(text2, password);
+            string? text3 = LockedConfig.TryUnlock(text2, password);
             if (text3 == null)
             {
                 return ImportResult.Fail(ImportError.BadPassword, "Wrong passphrase, or the file is corrupted.");
@@ -79,7 +79,7 @@ public static class NpvtImporter
         if (NpvtContainer.Identify(text2) == NpvtContainer.ContainerKind.Npvt)
         {
             ImportBatch containerBatch = ImportAll(text2, password, source);
-            ImportResult first = containerBatch.Results.FirstOrDefault((ImportResult r) => r.Success) ?? containerBatch.Results.FirstOrDefault();
+            ImportResult? first = containerBatch.Results.FirstOrDefault((ImportResult r) => r.Success) ?? containerBatch.Results.FirstOrDefault();
             if (first != null)
             {
                 return first;
@@ -165,7 +165,7 @@ public static class NpvtImporter
                 return ImportResult.Fail(ImportError.UnknownFormat, "This is a full Xray/V2Ray client config, not an npvt profile. Share links and npvt/1 documents are supported; a raw client config would be able to run arbitrary core features.");
             }
             JsonElement value2;
-            string text2 = ((rootElement.TryGetProperty("schema", out value2) && value2.ValueKind == JsonValueKind.String) ? value2.GetString() : null);
+            string? text2 = ((rootElement.TryGetProperty("schema", out value2) && value2.ValueKind == JsonValueKind.String) ? value2.GetString() : null);
             if (text2 != null && !text2.StartsWith("npvt/", StringComparison.OrdinalIgnoreCase))
             {
                 return ImportResult.Fail(ImportError.UnknownFormat, "Unknown schema '" + text2 + "'.");
@@ -238,16 +238,16 @@ public static class NpvtImporter
             bool flag2;
             switch (c)
             {
-            case '+':
-            case '-':
-            case '/':
-            case '=':
-            case '_':
-                flag2 = true;
-                break;
-            default:
-                flag2 = false;
-                break;
+                case '+':
+                case '-':
+                case '/':
+                case '=':
+                case '_':
+                    flag2 = true;
+                    break;
+                default:
+                    flag2 = false;
+                    break;
             }
             flag = flag2;
         }

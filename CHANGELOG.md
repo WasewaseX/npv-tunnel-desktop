@@ -1,5 +1,56 @@
 # Changelog
 
+## 1.1.1 - 2026-11-13
+
+A review of 1.1.0 found four places where the code was weaker than the documentation.
+This release closes them, and turns the build into something that refuses to hide
+problems of the same kind.
+
+### Security
+
+* **The engine config file no longer lingers in the clear.** 1.1.0 wrote the
+  engine's readable config into a fixed runtime path and deleted it on stop, which
+  leaves a working credential on disk for the whole session and forever after a
+  crash. Each session now gets its own directory (`runtime/session-<guid>`), created
+  `0700` and owner-only on Windows; the file is written just before the engine starts
+  and overwritten-and-deleted as soon as the engine reports its local endpoints
+  listening. Leftovers from a killed session are swept at startup, and the directory
+  is removed on a clean stop. The Linux command line does the same, including on
+  Ctrl-C.
+* **The digest compiled into the build is now the only authority.** 1.1.0 compared
+  the engine against `ENGINE.sha256` sitting next to it, which anyone able to replace
+  the binary can replace too. `EngineIntegrity` pins the SHA-256 of every shipped
+  engine into the assembly; a binary that does not match is refused, and a sidecar
+  that agrees with a mismatched binary is treated as tampering and reported as such.
+  The window now runs the bundled engine only, and logs-and-ignores a custom path
+  left in an older settings file. The command line can still run another binary, but
+  only with the explicit `--trust-engine`, and it says so.
+* **A hostname is resolved and audited before it is dialled.** The private-endpoint
+  check used to look at the literal string, so a config naming a host that resolves
+  to `192.168.1.1`, `169.254.169.254` or `::1` walked straight past it. `EndpointResolver`
+  now resolves the endpoint, classifies every answer, and refuses the profile if any
+  answer lands in private, link-local, CGNAT, ULA or documentation space - a rebinding
+  answer with one bad record is refused rather than averaged. A healthy name is pinned
+  in the generated config (`dns.hosts`), so the engine dials the address that was
+  audited. The window runs the same audit; it previously ran none at all.
+* Warnings about unresolvable names are reported without blocking, because a blocked
+  network is not a broken config.
+
+### Changed
+
+* `TreatWarningsAsErrors` with the recommended analyzer set, nullable enabled across the
+  solution: every project now compiles with zero warnings, and a new one fails the build.
+  Two real findings were fixed on the way (a culture-dependent timestamp format and a
+  `Substring` in a log line).
+* `dotnet format --verify-no-changes` runs in CI, so formatting is not a review topic.
+* `tests/fixtures/vendor-channel-sanitized.npvt` - a real channel container with every
+  endpoint, port and credential replaced - is committed and read by a test that always
+  runs. CI additionally downloads the upstream container by commit and digest, so the
+  vendor format is checked against a genuine file on every push; the test that reads it
+  now reports itself as skipped when it is absent instead of passing silently.
+* `npvtunnel check` prints the pinned address, and exits non-zero when the engine it was
+  pointed at is refused.
+
 ## 1.1.0 - 2026-11-12
 
 ### Added

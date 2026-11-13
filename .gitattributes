@@ -9,3 +9,5 @@
 *.sh text eol=lf
 scripts/linux/* text eol=lf
 *.tar.gz binary
+# The vendor-format fixture is a hash-checked test input; git must not touch it.
+*.npvt binary

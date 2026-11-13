@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Net;
 using NpvTunnel.Core.Engine;
 using NpvTunnel.Core.Import;
 using NpvTunnel.Core.Models;
@@ -49,7 +50,8 @@ public static class Program
             --emit also writes the synthetic container it uses, for packaging tests.
 
         --store <path>   use a different profile store
-        --engine <path>  use a specific xray binary
+        --engine <path>  use a specific xray binary instead of the bundled one
+        --trust-engine   required together with --engine: you vouch for that binary
         """;
 
     public static int Main(string[] args)
@@ -124,7 +126,7 @@ public static class Program
                     Console.WriteLine("wrote synthetic container to " + emit);
                 }
 
-                return SelfTest.Run(options.Get("--engine"));
+                return SelfTest.Run(options.Get("--engine"), options.HasFlag("--trust-engine"));
 
             default:
                 Console.Error.WriteLine($"Unknown command '{command}'.");
@@ -225,7 +227,10 @@ public static class Program
         Console.WriteLine($"uuid        {Secret(profile.Uuid, reveal)}");
         Console.WriteLine($"password    {Secret(profile.Password, reveal)}");
 
-        foreach (ConfigAudit.Finding finding in ConfigAudit.Review(profile))
+        EndpointResolver.Resolution resolution = EndpointResolver.Resolve(profile.Address);
+        Console.WriteLine($"resolves    {DescribeResolution(resolution)}");
+
+        foreach (ConfigAudit.Finding finding in ConfigAudit.Review(profile, resolution))
         {
             Console.WriteLine($"audit       {finding.Severity.ToString().ToLowerInvariant()}: {finding.Message}");
         }
@@ -253,7 +258,7 @@ public static class Program
             return 1;
         }
 
-        IReadOnlyList<ConfigAudit.Finding> findings = ConfigAudit.Review(profile!);
+        (IReadOnlyList<ConfigAudit.Finding> findings, EngineOptions engineOptions) = AuditForConnect(profile!, options);
         if (ConfigAudit.BlocksConnect(findings))
         {
             Console.Error.WriteLine("refused: this configuration failed the safety audit.");
@@ -265,7 +270,6 @@ public static class Program
             return 1;
         }
 
-        EngineOptions engineOptions = ReadEngineOptions(options);
         EngineConfig config = XrayConfigBuilder.Build(profile!, engineOptions);
 
         string? output = options.Get("-o") ?? options.Get("--out");
@@ -287,8 +291,10 @@ public static class Program
             return 1;
         }
 
-        IReadOnlyList<ConfigAudit.Finding> findings = ConfigAudit.Review(profile!);
-        Console.WriteLine($"audit for '{profile!.Name}'");
+        EndpointResolver.Resolution resolution = EndpointResolver.Resolve(profile!.Address);
+        IReadOnlyList<ConfigAudit.Finding> findings = ConfigAudit.Review(profile, resolution);
+        Console.WriteLine($"audit for '{profile.Name}'");
+        Console.WriteLine($"  endpoint {DescribeResolution(resolution)}");
         if (findings.Count == 0)
         {
             Console.WriteLine("  no findings");
@@ -306,22 +312,34 @@ public static class Program
             return 1;
         }
 
-        string? enginePath = options.Get("--engine") ?? EngineLocator.Find();
-        if (enginePath is null)
+        EngineRunner? runner = OpenEngine(options, out string? engineError);
+        if (runner is null)
         {
-            Console.WriteLine("engine    not found (pass --engine or install core/xray next to the app)");
-            return 0;
+            Console.WriteLine("engine    " + engineError);
+            // Asking for a specific binary and being refused is a failure; having no
+            // engine installed at all still lets the audit be useful on its own.
+            return options.Get("--engine") is null ? 0 : 1;
         }
 
-        using var runner = new EngineRunner(enginePath);
-        if (!runner.VerifyDigest(out string digestMessage))
+        using var checkRunner = runner;
+        if (!checkRunner.VerifyDigest(out string digestMessage, trustCustomEngine: checkRunner.IsCustom))
         {
             Console.WriteLine("engine    " + digestMessage);
             return 1;
         }
 
-        string configPath = runner.WriteConfig(profile, ReadEngineOptions(options));
-        bool ok = runner.TestConfig(configPath, out string output);
+        Console.WriteLine("engine    " + digestMessage);
+
+        EngineOptions engineOptions = ReadEngineOptions(options);
+        IPAddress? pin = EndpointResolver.PinCandidate(resolution, engineOptions.BlockIpv6);
+        if (pin is not null && !resolution.IsLiteral)
+        {
+            engineOptions.PinnedEndpointAddress = pin.ToString();
+            Console.WriteLine($"  pinned   {pin} (the engine dials this address, not the name again)");
+        }
+
+        string configPath = checkRunner.WriteConfig(profile, engineOptions);
+        bool ok = checkRunner.TestConfig(configPath, out string output);
         Console.WriteLine(ok ? "engine    config accepted by xray -test" : "engine    xray rejected the config:");
         if (!ok)
         {
@@ -338,7 +356,7 @@ public static class Program
             return 1;
         }
 
-        IReadOnlyList<ConfigAudit.Finding> findings = ConfigAudit.Review(profile!);
+        (IReadOnlyList<ConfigAudit.Finding> findings, EngineOptions engineOptions) = AuditForConnect(profile!, options);
         if (ConfigAudit.BlocksConnect(findings))
         {
             Console.Error.WriteLine("refused: this configuration failed the safety audit.");
@@ -350,22 +368,25 @@ public static class Program
             return 1;
         }
 
-        string? enginePath = options.Get("--engine") ?? EngineLocator.Find();
-        if (enginePath is null)
+        EngineRunner? opened = OpenEngine(options, out string? engineError);
+        if (opened is null)
         {
-            Console.Error.WriteLine("The tunnel engine was not found. Install the release tarball, or pass --engine.");
+            Console.Error.WriteLine(engineError);
             return 1;
         }
 
-        EngineOptions engineOptions = ReadEngineOptions(options);
-        using var runner = new EngineRunner(enginePath);
-        if (!runner.VerifyDigest(out string digestMessage))
+        using var runner = opened;
+        if (!runner.VerifyDigest(out string digestMessage, trustCustomEngine: runner.IsCustom))
         {
             Console.Error.WriteLine(digestMessage);
             return 1;
         }
 
         Console.WriteLine(digestMessage);
+        if (!string.IsNullOrEmpty(engineOptions.PinnedEndpointAddress))
+        {
+            Console.WriteLine($"endpoint  {profile!.Address} pinned to {engineOptions.PinnedEndpointAddress}");
+        }
 
         string configPath = runner.WriteConfig(profile!, engineOptions);
         if (!runner.TestConfig(configPath, out string testOutput))
@@ -398,6 +419,79 @@ public static class Program
         runner.Stop();
         Console.WriteLine("disconnected.");
         return 0;
+    }
+
+    /// <summary>
+    /// Resolves the endpoint once, reviews the profile with that answer, and returns
+    /// the engine options with the audited address pinned. A hostname that resolves
+    /// into private space is refused here - the same check the Windows app makes
+    /// before it starts the core.
+    /// </summary>
+    /// <summary>
+    /// Opens the engine this command may start. The bundled binary is checked against
+    /// the digest compiled into this build; a binary the user pointed at needs the
+    /// explicit --trust-engine opt-in, because nothing here knows what it should be.
+    /// </summary>
+    private static EngineRunner? OpenEngine(Options options, out string? error)
+    {
+        error = null;
+        string? explicitPath = options.Get("--engine");
+        bool trusted = options.HasFlag("--trust-engine");
+        string? path = explicitPath ?? EngineLocator.Find();
+        if (path is null)
+        {
+            error = "The tunnel engine was not found. Install the release archive, or pass --engine <path> --trust-engine.";
+            return null;
+        }
+
+        if (explicitPath is not null && !trusted)
+        {
+            error = "Refusing to run a binary you pointed at: digest pins in this build cover the bundled engine only. Pass --trust-engine if you have checked that file yourself.";
+            return null;
+        }
+
+        return new EngineRunner(path) { IsCustom = explicitPath is not null };
+    }
+
+    private static (IReadOnlyList<ConfigAudit.Finding> Findings, EngineOptions Options) AuditForConnect(Profile profile, Options options)
+    {
+        EndpointResolver.Resolution resolution = EndpointResolver.Resolve(profile.Address);
+        IReadOnlyList<ConfigAudit.Finding> findings = ConfigAudit.Review(profile, resolution);
+
+        EngineOptions engineOptions = ReadEngineOptions(options);
+        IPAddress? pin = EndpointResolver.PinCandidate(resolution, engineOptions.BlockIpv6);
+        if (pin is not null && !resolution.IsLiteral)
+        {
+            engineOptions.PinnedEndpointAddress = pin.ToString();
+        }
+
+        return (findings, engineOptions);
+    }
+
+    private static string DescribeResolution(EndpointResolver.Resolution resolution)
+    {
+        if (resolution.IsLiteral)
+        {
+            return resolution.Host + " (literal address)";
+        }
+
+        if (!resolution.Resolved)
+        {
+            return resolution.Host + " (not resolved: " + resolution.Failure + ")";
+        }
+
+        var parts = new List<string>();
+        if (resolution.PublicAddresses.Count > 0)
+        {
+            parts.Add(string.Join(", ", resolution.PublicAddresses));
+        }
+
+        if (resolution.HasPrivate)
+        {
+            parts.Add("private " + string.Join(", ", resolution.PrivateAddresses));
+        }
+
+        return resolution.Host + " -> " + string.Join("; ", parts);
     }
 
     private static EngineOptions ReadEngineOptions(Options options)
