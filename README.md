@@ -1,5 +1,8 @@
 # NPV Tunnel Desktop
 
+[![CI](https://github.com/WasewaseX/npv-tunnel-desktop/actions/workflows/ci.yml/badge.svg)](https://github.com/WasewaseX/npv-tunnel-desktop/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/WasewaseX/npv-tunnel-desktop)](https://github.com/WasewaseX/npv-tunnel-desktop/releases/latest)
+
 A native Windows client for **NPV Tunnel / NapsternetV** configuration files — same
 profiles, same share links, none of the mobile-app baggage.
 

@@ -1,82 +1,85 @@
 # CI and releases
 
-## "Installing" master-ci
+Everything is built and verified on GitHub Actions. There is no local Windows
+requirement: the WPF project sets `EnableWindowsTargeting=true`, so the shared
+quality pipeline runs on `ubuntu-latest` and the GUI binary is still produced and
+checked.
 
-[`WasewaseX/master-ci`](https://github.com/WasewaseX/master-ci) is **not a package you
-install**. It is a repository of reusable GitHub Actions workflows; you consume it with a
-`uses:` reference from your own workflow file. That is why "did you install it completely"
-has a slightly different answer than for a normal dependency — there is nothing to install,
-there is a caller to write correctly.
+## The quality pipeline (`.github/workflows/ci.yml`)
 
-`\.github/workflows/ci.yml` is that caller:
+`master-ci` at [`WasewaseX/master-ci`](https://github.com/WasewaseX/master-ci) is a
+repository of reusable workflows, not a package. Consuming it means writing one
+`uses:` caller, and pinning it to a commit so a moved tag cannot change what runs
+in this repository:
 
 ```yaml
 jobs:
   master:
-    uses: WasewaseX/master-ci/.github/workflows/master-ci.yml@v2
+    uses: WasewaseX/master-ci/.github/workflows/master-ci.yml@53e85397bc2f1d097d1665e8976873f1adfdc439 # v2.12.0
     with:
       profile: standard
       runs_on: ubuntu-latest
-      run_csharp: true
-      dotnet_version: '8.0'
-    permissions:
-      contents: read
-      security-events: write
-      pull-requests: write
-      id-token: write
-
-  codeql:
-    uses: WasewaseX/master-ci/.github/workflows/codeql.yml@v2
-    with:
-      languages: csharp
-    permissions:
-      contents: read
-      security-events: write
+      run_csharp: 'true'
+      dotnet_version: '8.0.x'
+      template_ref: 'v2.12.0'
 ```
 
-What that gives you, without any local tooling: stack detection (it sees the
-`*.csproj` files and runs the .NET lane), formatting/analyzer gates, secret scanning,
-dependency review, structural "AI-slop" checks across the repo, and CodeQL results in the
-Security tab. The `v2` tag is the documented stable reference; pin it to a commit SHA if you
-want immutability.
+What that buys, per push and per pull request:
 
-## The Windows job exists because master-ci runs on Ubuntu
+| Gate | What it does here |
+|---|---|
+| `csharp` | `dotnet build -c Release` + `dotnet test` over the whole solution, with the .NET analyzers at `latest` |
+| `security` | CodeQL-style SAST and dependency review over the tree |
+| `secrets` | Secret scanning on every commit |
+| `hygiene` | `.editorconfig` conformance, `actionlint` and `zizmor` over the workflows, duplication threshold |
+| `ai-integrity` | Blocking-score ceiling plus the new-code gates: added lines must have zero blocking findings and cognitive/cyclomatic complexity <= 15 |
+| `quality-ratchet`, `new-code-gate` | The trend files that stop quality from sliding back |
+| `scorecard` | OSSF Scorecard published to the Security tab |
 
-`master-ci` intentionally targets free `ubuntu-latest` runners. WPF cannot be built there
-(the Windows Desktop targeting pack is Windows-only in practice, and the app cannot run).
-So `ci.yml` adds two small jobs of its own:
+The core was recovered from the shipped 1.0.0 binaries, so its baseline
+complexity is whatever the decompiler produced. That baseline is recorded as the
+ceiling in `ci.yml`; the **new-code** gates are the ones that matter going
+forward, and every line added from here on has to clear them.
 
-| Job | Runner | Purpose |
-|---|---|---|
-| `windows-build` | `windows-latest` | `dotnet test`, `dotnet build`, **plus a PE-header assertion that the produced `.exe` has subsystem 2 (`WINDOWS_GUI`)** — the automated guard against ever shipping a build that opens a console window again |
-| `linux-core` | `ubuntu-latest` | builds `NpvTunnel.Core` with `-warnaserror` to keep the platform-neutral layer portable |
+## The Windows smoke job
 
-## Release pipeline
+`windows-smoke` builds the real WPF application on `windows-latest` and then
+asserts the two things that define this project's behaviour:
 
-`.github/workflows/release.yml` runs on `v*` tags (or manually):
+1. **GUI subsystem.** `e_lfanew` at `0x3C`, `Subsystem` (a `UInt16`) at `PE + 0x5C`
+   must be `2` (`WINDOWS_GUI`). `3` would mean a console window is allocated on
+   start, which is exactly the defect this port exists to remove.
+2. **No console host.** Greps the GUI project for `AllocConsole` / `kernel32`
+   console P/Invokes.
 
-1. `dotnet test` — the 55-test suite must pass.
-2. Two publishes: `lite` (framework-dependent, ~600 KB) and `portable` (self-contained
-   single file, ~63 MB).
-3. Downloads **Xray-core v26.11.9** and verifies **both** the archive digest and the
-   extracted binary digest against constants committed in the workflow *and* compiled into
-   the app.
-4. Assembles `NpvTunnel-<ver>-win-x64.zip` and `NpvTunnel-<ver>-win-x64-portable.zip`
-   (each with `core\`, docs and a `START-HERE.txt`).
-5. Emits `npvtunnel-<ver>-checksums.txt` (SHA-256 of every asset).
-6. Creates the GitHub Release with `gh release create --generate-notes`.
+It also publishes `win-x64` so a broken runtime identifier or a missing resource
+fails in CI rather than in a release.
 
-To cut a release:
+## Releases (`.github/workflows/release.yml`)
 
-```bash
-git tag v1.0.0
-git push origin v1.0.0
-```
+Pushing a tag `v*` (or running the workflow manually) does all of this on
+`windows-latest`:
 
-## Local equivalent (Windows)
+1. `scripts/build.ps1` publishes the framework-dependent (lite) and
+   self-contained single-file (portable) builds, downloads the pinned Xray-core
+   archive, verifies **both** its SHA-256 and the extracted `xray.exe` digest,
+   then stages and zips both flavours.
+2. Inno Setup compiles `installer/NpvTunnel.iss` into
+   `NpvTunnel-<version>-win-x64-setup.exe` - per user, no UAC, with the `.npvt`
+   association.
+3. A SHA-256 manifest is written for every artifact.
+4. The GitHub Release is created (or updated) with the three downloads, the
+   manifest and generated notes.
+
+No untrusted value is interpolated into a script body: versions reach the steps
+through `env`, which is what the template-injection audit requires.
+
+## Reproducing the release locally (optional, Windows only)
 
 ```powershell
 pwsh scripts/build.ps1 -Version 1.0.0
+iscc "/DMyAppVersion=1.0.0" installer\NpvTunnel.iss
 ```
 
-Produces the same two archives under `release\`.
+The repository never contains binaries: `core\` is fetched and verified at build
+time, and `dist\` plus `publish\` are ignored.
