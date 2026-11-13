@@ -48,7 +48,7 @@ npvtunnel connect 3                          # foreground tunnel, Ctrl+C to stop
 
 `connect` prints the proxy address it opened:
 
-```
+```text
 connected to 𝗜𝗥𝗖𝗢𝗡𝗙𝗜𝗚🦦6
   socks5 127.0.0.1:2080
   http   127.0.0.1:2081

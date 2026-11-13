@@ -41,6 +41,9 @@ public static class Program
         npvtunnel connect <index|id> [--socks N] [--http N]
             Run the tunnel in the foreground until Ctrl+C.
 
+        npvtunnel where
+            Print the paths this build uses: store, key, engine.
+
         npvtunnel selftest [--emit <file>]
             Exercise the parser, the audit and the engine on this machine.
             --emit also writes the synthetic container it uses, for packaging tests.
@@ -99,6 +102,13 @@ public static class Program
 
             case "connect":
                 return Connect(positional, options, profiles);
+
+            case "where":
+                var whereStore = new ProfileStore(options.Get("--store"));
+                Console.WriteLine("store    " + whereStore.FilePath + (File.Exists(whereStore.FilePath) ? string.Empty : " (not created yet)"));
+                Console.WriteLine("key      " + whereStore.KeyPath + (File.Exists(whereStore.KeyPath) ? string.Empty : " (not created yet)"));
+                Console.WriteLine("engine   " + (options.Get("--engine") ?? EngineLocator.Find() ?? "not found"));
+                return 0;
 
             case "selftest":
                 string? emit = options.Get("--emit");

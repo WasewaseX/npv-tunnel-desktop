@@ -51,11 +51,15 @@ public sealed class ContainerAndStoreTests
             string raw = File.ReadAllText(path);
             Assert.DoesNotContain(batch.Profiles[0].Uuid, raw, StringComparison.OrdinalIgnoreCase);
             Assert.DoesNotContain(batch.Profiles[1].Address, raw, StringComparison.OrdinalIgnoreCase);
-            Assert.Equal(UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute,
-                File.GetUnixFileMode(dir));
 
             // Sealing must not cost the user their profiles: a second read still works.
             Assert.Equal(2, new ProfileStore(path).Load().Count);
+
+            if (!OperatingSystem.IsWindows())
+            {
+                Assert.Equal(UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute,
+                    File.GetUnixFileMode(dir));
+            }
         }
         finally
         {

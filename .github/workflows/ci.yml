@@ -169,7 +169,7 @@ jobs:
         shell: pwsh
         run: ./scripts/publish-linux.ps1 -Version 1.0.0 -Runtime linux-x64 -SkipTests
 
-      - name: Install from the archive and run it
+      - name: Install the archive and run it
         run: |
           set -eu
           mkdir -p "$RUNNER_TEMP/ship"
@@ -178,8 +178,12 @@ jobs:
           # No DOTNET_ROOT, no runtime on PATH: this is what a user's machine
           # looks like, and the archive has to work there on its own.
           env -i HOME="$RUNNER_TEMP/home" PATH=/usr/bin:/bin sh install.sh
+
           export HOME="$RUNNER_TEMP/home"
+          unset XDG_CONFIG_HOME
           export PATH="$HOME/.local/bin:/usr/bin:/bin"
+
+          npvtunnel where
           npvtunnel selftest
           npvtunnel selftest --emit "$RUNNER_TEMP/synthetic.npvt"
           npvtunnel import "$RUNNER_TEMP/synthetic.npvt"
@@ -187,25 +191,24 @@ jobs:
           npvtunnel check 0
           npvtunnel check 1
           npvtunnel show 0 | tee "$RUNNER_TEMP/show.txt"
-          # show must redact the credential unless --reveal is passed.
           if grep -q '11111111-2222-3333-4444-555555555555' "$RUNNER_TEMP/show.txt"; then
             echo '::error::npvtunnel show printed a credential without --reveal'
             exit 1
           fi
-          echo "==> Linux archive works with no runtime installed"
 
-      - name: Assert the store is sealed
-        run: |
-          set -eu
-          export HOME="$RUNNER_TEMP/home"
+          # The store holds live credentials from public channels, so it has to
+          # arrive sealed, owner-only, with the key beside it.
           store="$HOME/.config/npvtunnel/profiles.json"
-          test -f "$store"
-          test -f "$HOME/.config/npvtunnel/store.key"
-          if grep -q 'example.com' "$store"; then
+          key="$HOME/.config/npvtunnel/store.key"
+          ls -la "$HOME/.config/npvtunnel"
+          [ -f "$store" ] || { echo "::error::no store at $store"; exit 1; }
+          [ -f "$key" ] || { echo "::error::no store key at $key"; exit 1; }
+          if grep -q 'example\.com' "$store"; then
             echo '::error::the profile store is readable in the clear'
             exit 1
           fi
-          echo "store: $(stat -c '%a' "$store"), key: $(stat -c '%a' "$HOME/.config/npvtunnel/store.key")"
+          echo "store mode $(stat -c '%a' "$store"), key mode $(stat -c '%a' "$key"), $(wc -c < "$store") bytes"
+          echo "==> the Linux archive works with no runtime installed"
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
