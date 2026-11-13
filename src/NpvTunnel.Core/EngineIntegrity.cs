@@ -20,12 +20,20 @@ public static class EngineIntegrity
 {
     public sealed record KnownEngine(string Runtime, string FileName, string Sha256);
 
+    /// <summary>
+    /// SHA-256 of the engine binary shipped in each release archive. Updating the engine
+    /// means updating these three constants in the same commit as the version bump.
+    /// </summary>
+    private const string WinX64Sha256 = "1ca7a2cf61ba2c5d20b21a80d405b57933939751081cb289f07bd8ddf7cc3185";
+    private const string LinuxX64Sha256 = "e87bce586acdb9136aa5b1f1d9c8db9f1ea1d145b6d86368c7f6f662f9f6a66d";
+    private const string LinuxArm64Sha256 = "c2d1e66a130556d32089adcf38202fcb6f9027e41fb456cc2cda9a5fabdc093a";
+
     /// <summary>The engines this build ships with or downloads, by runtime identifier.</summary>
     public static IReadOnlyList<KnownEngine> Known { get; } = new[]
     {
-        new KnownEngine("win-x64", "xray.exe", "1ca7a2cf61ba2c5d20b21a80d405b57933939751081cb289f07bd8ddf7cc3185"),
-        new KnownEngine("linux-x64", "xray", "e87bce586acdb9136aa5b1f1d9c8db9f1ea1d145b6d86368c7f6f662f9f6a66d"),
-        new KnownEngine("linux-arm64", "xray", "c2d1e66a130556d32089adcf38202fcb6f9027e41fb456cc2cda9a5fabdc093a"),
+        new KnownEngine("win-x64", "xray.exe", WinX64Sha256),
+        new KnownEngine("linux-x64", "xray", LinuxX64Sha256),
+        new KnownEngine("linux-arm64", "xray", LinuxArm64Sha256),
     };
 
     public sealed record Verdict(bool Trusted, bool Custom, string Message);

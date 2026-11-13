@@ -23,7 +23,7 @@
 
   <ItemGroup>
     <!-- A vendor-format container with every real endpoint replaced, so the decoder
-         path is covered by a committed artefact as well as by the upstream sample. -->
+    path is covered by a committed artefact as well as by the upstream sample. -->
     <None Include="..\fixtures\*" Link="fixtures\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
