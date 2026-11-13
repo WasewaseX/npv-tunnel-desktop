@@ -39,6 +39,18 @@ jobs:
       run_ruby: 'false'
       run_php: 'false'
       run_docker: 'false'
+      # The core was recovered from the shipped 1.0.0 binaries, so its baseline
+      # complexity is what the decompiler produced. The blocking ceiling is
+      # raised to match that baseline today, and the new-code gates below are
+      # what actually protects the tree: every line added from here on must be
+      # at zero blocking findings with cognitive/cyclomatic complexity <= 15.
+      fail_on_ai_slop: true
+      ai_slop_max_score: 25
+      diff_base: 'origin/main'
+      new_code_gates: true
+      new_code_max_slop: 0
+      new_code_max_cognitive: 15
+      new_code_max_cyclomatic: 15
     permissions:
       contents: read
       security-events: write
@@ -52,11 +64,11 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           persist-credentials: false
 
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v5
         with:
           dotnet-version: '8.0.x'
 
