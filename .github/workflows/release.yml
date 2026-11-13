@@ -25,6 +25,11 @@ jobs:
     name: Build and publish
     runs-on: windows-latest
     timeout-minutes: 45
+    # Only this job writes: it creates the release and uploads the Windows
+    # assets. Declared here rather than at the workflow level so the token it
+    # gets is no broader than the job that needs it.
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
