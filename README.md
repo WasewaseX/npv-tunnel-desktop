@@ -111,13 +111,13 @@ plain `net8.0` so they are unit-tested on any runner.
 ## Testing
 
 ```bash
-dotnet test                                            # 134 tests
+dotnet test                                            # 137 tests
 dotnet format NpvTunnel.sln --verify-no-changes        # the formatting gate CI runs
 pwsh scripts/check-themes.ps1                          # both palettes define what the views ask for
 pwsh scripts/publish-linux.ps1 -Version 1.1.1 -SkipTests   # builds the Linux archive
 ```
 
-134 tests cover the parsers, the importer, the container decryption (against a committed
+137 tests cover the parsers, the importer, the container decryption (against a committed
 vendor-format fixture and, in CI, against a real container from upstream), the safety
 audit, endpoint resolution and pinning, engine integrity, the shredder, the locked
 envelope, the config builder, redaction and validation.

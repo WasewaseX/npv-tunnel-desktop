@@ -24,6 +24,10 @@ $engineBinary  = '1ca7a2cf61ba2c5d20b21a80d405b57933939751081cb289f07bd8ddf7cc31
 Write-Host "==> NPV Tunnel Desktop $Version" -ForegroundColor Cyan
 
 if (-not $SkipTests) {
+    Write-Host '==> Formatting'
+    dotnet format NpvTunnel.sln --verify-no-changes --severity warn
+    if ($LASTEXITCODE -ne 0) { throw 'Formatting drift: run dotnet format.' }
+
     Write-Host '==> Tests'
     dotnet test tests/NpvTunnel.Core.Tests/NpvTunnel.Core.Tests.csproj --configuration $Configuration
     if ($LASTEXITCODE -ne 0) { throw 'Core tests failed.' }
