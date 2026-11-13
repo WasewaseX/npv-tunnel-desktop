@@ -31,6 +31,33 @@ thing.
 | 11 | Predictable/global IPC surface | Local process can steer the client | Single-instance mutex and named pipe are namespaced by the user SID with `PipeOptions.CurrentUserOnly`; the payload is one existing file path, never a command |
 | 12 | Admin installers writing `HKLM` associations | Machine-wide hijack, requires elevation, collides with user choice | Association is `HKCU\Software\Classes\.npvt` only, toggled from Settings |
 
+## Configurations from public channels
+
+A `.npvt` from a Telegram channel is a file written by a stranger that asks for a
+tunnel to a host of their choosing. `NpvTunnel.Core.Security.ConfigAudit` reviews each
+imported profile before it may connect, on both platforms:
+
+| Refused (never reaches the engine) | Why |
+|---|---|
+| Loopback, RFC1918, CGNAT, link-local, IPv6 ULA or documentation addresses | A public config pointing into your own network is broken at best; at worst it is an attempt to reach your router or a service on your LAN. |
+| VLESS without TLS or REALITY to a public host | VLESS has no encryption of its own. The engine refuses the combination and the traffic would be readable on the path. |
+| REALITY without a public key, or a port outside 1-65535 | The handshake cannot complete, and a half-configured REALITY is weaker than the name implies. |
+
+Warnings (connectable, reported in `npvtunnel check` and in the app): no TLS on
+VMess/Trojan/Shadowsocks, `allowInsecure` in the source config, a missing SNI, unusual
+ports, fragmentation, and mux settings the vendor JSON asks for that the engine does not
+reproduce.
+
+## Storage
+
+* **Windows:** profiles are encrypted with DPAPI (`CurrentUser`); the blob is useless on
+  another machine or account.
+* **Linux:** `~/.config/npvtunnel/profiles.json` is sealed with AES-256-GCM under
+  `store.key` beside it. Both are `0600` in a `0700` directory and written
+  write-then-rename. That protects a copied file or a synced folder; it is not a
+  substitute for full-disk encryption, because anyone who can read the key can read the
+  store.
+
 ## Supply chain
 
 * The engine archive is fetched from the upstream GitHub release **in CI**, verified
