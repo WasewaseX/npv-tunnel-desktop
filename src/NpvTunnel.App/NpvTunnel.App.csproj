@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- WinExe => no console window is ever allocated. This is the fix for the
+         "it opens a terminal" problem: a GUI subsystem binary plus hidden,
+         redirected child processes for the tunnel core. -->
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <AssemblyName>NpvTunnel</AssemblyName>
+    <RootNamespace>NpvTunnel.App</RootNamespace>
+    <ApplicationIcon>Assets\npvtunnel.ico</ApplicationIcon>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <DebugType>embedded</DebugType>
+    <SelfContained>false</SelfContained>
+    <TieredPGO>true</TieredPGO>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\NpvTunnel.Core\NpvTunnel.Core.csproj" />
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="8.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\npvtunnel.ico" />
+    <None Update="app.manifest" />
+  </ItemGroup>
+
+</Project>
