@@ -8,20 +8,21 @@ namespace NpvTunnel.Core.Tests;
 
 public sealed class ImportTests : IDisposable
 {
+    // The raw-string payload is JSON, indented for readability inside the test.
     private const string VlessJson = """
-        {
-          "schema": "npvt/1",
-          "name": "Round Trip",
-          "protocol": "vless",
-          "address": "example.com",
-          "port": 443,
-          "uuid": "11111111-2222-3333-4444-555555555555",
-          "flow": "",
-          "transport": "tcp",
-          "tls": true,
-          "sni": "example.com"
-        }
-        """;
+    {
+        "schema": "npvt/1",
+        "name": "Round Trip",
+        "protocol": "vless",
+        "address": "example.com",
+        "port": 443,
+        "uuid": "11111111-2222-3333-4444-555555555555",
+        "flow": "",
+        "transport": "tcp",
+        "tls": true,
+        "sni": "example.com"
+    }
+    """;
 
     private readonly string _dir = Path.Combine(Path.GetTempPath(), "npvt-tests-" + Guid.NewGuid().ToString("N"));
 

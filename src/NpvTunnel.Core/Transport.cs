@@ -2,10 +2,10 @@ namespace NpvTunnel.Core.Models;
 
 public enum Transport
 {
-	Tcp,
-	WebSocket,
-	Grpc,
-	HttpUpgrade,
-	Xhttp,
-	Quic
+    Tcp,
+    WebSocket,
+    Grpc,
+    HttpUpgrade,
+    Xhttp,
+    Quic
 }

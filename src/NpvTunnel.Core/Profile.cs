@@ -5,96 +5,96 @@ namespace NpvTunnel.Core.Models;
 
 public sealed class Profile
 {
-	public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid Id { get; set; } = Guid.NewGuid();
 
 
-	public string Name { get; set; } = "Untitled";
+    public string Name { get; set; } = "Untitled";
 
 
-	public ProfileProtocol Protocol { get; set; }
+    public ProfileProtocol Protocol { get; set; }
 
-	public string Address { get; set; } = string.Empty;
-
-
-	public int Port { get; set; } = 443;
+    public string Address { get; set; } = string.Empty;
 
 
-	public string Uuid { get; set; } = string.Empty;
+    public int Port { get; set; } = 443;
 
 
-	public int AlterId { get; set; }
-
-	public string VmessSecurity { get; set; } = "auto";
+    public string Uuid { get; set; } = string.Empty;
 
 
-	public string Password { get; set; } = string.Empty;
+    public int AlterId { get; set; }
+
+    public string VmessSecurity { get; set; } = "auto";
 
 
-	public string Method { get; set; } = string.Empty;
+    public string Password { get; set; } = string.Empty;
 
 
-	public string Username { get; set; } = string.Empty;
+    public string Method { get; set; } = string.Empty;
 
 
-	public string Flow { get; set; } = string.Empty;
+    public string Username { get; set; } = string.Empty;
 
 
-	public Transport Transport { get; set; }
-
-	public string Path { get; set; } = "/";
+    public string Flow { get; set; } = string.Empty;
 
 
-	public string Host { get; set; } = string.Empty;
+    public Transport Transport { get; set; }
+
+    public string Path { get; set; } = "/";
 
 
-	public string ServiceName { get; set; } = string.Empty;
+    public string Host { get; set; } = string.Empty;
 
 
-	public IReadOnlyList<string> Alpn { get; set; } = Array.Empty<string>();
+    public string ServiceName { get; set; } = string.Empty;
 
 
-	public SecurityLayer Security { get; set; }
-
-	public string Sni { get; set; } = string.Empty;
+    public IReadOnlyList<string> Alpn { get; set; } = Array.Empty<string>();
 
 
-	public string Fingerprint { get; set; } = string.Empty;
+    public SecurityLayer Security { get; set; }
+
+    public string Sni { get; set; } = string.Empty;
 
 
-	public string PublicKey { get; set; } = string.Empty;
+    public string Fingerprint { get; set; } = string.Empty;
 
 
-	public string ShortId { get; set; } = string.Empty;
+    public string PublicKey { get; set; } = string.Empty;
 
 
-	public string SpiderX { get; set; } = string.Empty;
+    public string ShortId { get; set; } = string.Empty;
 
 
-	public bool AllowInsecure { get; set; }
-
-	public string DomainStrategy { get; set; } = "UseIP";
+    public string SpiderX { get; set; } = string.Empty;
 
 
-	public bool Mux { get; set; }
+    public bool AllowInsecure { get; set; }
 
-	public string Fragment { get; set; } = string.Empty;
-
-
-	public string Source { get; set; } = string.Empty;
+    public string DomainStrategy { get; set; } = "UseIP";
 
 
-	public DateTimeOffset ImportedAt { get; set; } = DateTimeOffset.UtcNow;
+    public bool Mux { get; set; }
+
+    public string Fragment { get; set; } = string.Empty;
 
 
-	public string Endpoint => $"{Address}:{Port}";
+    public string Source { get; set; } = string.Empty;
 
-	public Profile Clone()
-	{
-		return (Profile)MemberwiseClone();
-	}
 
-	public override string ToString()
-	{
-		return $"{Name} [{Protocol} {Endpoint}]";
-	}
+    public DateTimeOffset ImportedAt { get; set; } = DateTimeOffset.UtcNow;
+
+
+    public string Endpoint => $"{Address}:{Port}";
+
+    public Profile Clone()
+    {
+        return (Profile)MemberwiseClone();
+    }
+
+    public override string ToString()
+    {
+        return $"{Name} [{Protocol} {Endpoint}]";
+    }
 }

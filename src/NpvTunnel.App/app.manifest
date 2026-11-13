@@ -3,7 +3,7 @@
   <assemblyIdentity version="1.0.0.0" name="NpvTunnel.App" />
 
   <!-- Runs as the signed-in user: no UAC prompt, no admin rights, no service.
-       Per-user settings, per-user file associations, per-user system proxy. -->
+    Per-user settings, per-user file associations, per-user system proxy. -->
   <trustInfo xmlns="urn:schemas-microsoft-com:asm.v2">
     <security>
       <requestedPrivileges xmlns="urn:schemas-microsoft-com:asm.v3">

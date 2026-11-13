@@ -1,13 +1,13 @@
 NPV Tunnel — what the installer does
 ====================================
 
-1. Copies the application into your own profile
-   (%LOCALAPPDATA%\Programs\NPV Tunnel). No administrator rights, no UAC prompt.
+1. Copies the application into your own profile (%LOCALAPPDATA%\Programs\NPV
+  Tunnel). No administrator rights, no UAC prompt.
 
 2. Registers the .npvt file association for the current user only. After Setup
-   finishes you can double-click a .npvt file anywhere — Explorer, a download
-   window, a chat attachment — and it is imported into the app immediately, the
-   same way an APK import works on Android.
+  finishes you can double-click a .npvt file anywhere - Explorer, a download
+  window, a chat attachment - and it is imported into the app immediately, the
+  same way an APK import works on Android.
 
 3. Optionally adds a Start menu entry and a desktop shortcut.
 

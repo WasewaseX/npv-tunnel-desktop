@@ -1,0 +1,54 @@
+# EditorConfig: the single source of truth for whitespace in this repository.
+# The hygiene job copies a default when this file is missing — committing it
+# means our own policy wins, and the C# sources (recovered from the shipped
+# binaries) keep their tab indentation instead of failing a spaces rule.
+
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 2
+
+# Solution file: Visual Studio writes a BOM and CRLF, and git checks it out
+# that way (see .gitattributes).
+[*.sln]
+charset = utf-8-bom
+end_of_line = crlf
+indent_style = tab
+indent_size = 4
+
+# PowerShell: CRLF on checkout, four spaces (PSScriptAnalyzer default).
+[*.{ps1,psm1,psd1}]
+end_of_line = crlf
+indent_style = space
+indent_size = 4
+
+# C#: four spaces, the .NET convention. The recovered sources were detabbed to
+# match so the whole tree is consistent.
+[*.cs]
+indent_style = space
+indent_size = 4
+
+[*.{csproj,props,targets}]
+indent_style = space
+indent_size = 2
+
+# XAML wraps long attribute lists with alignment indentation, so only the
+# character class is enforced, not a fixed width.
+[*.{xaml,axaml,html}]
+indent_style = space
+indent_size = 1
+
+[*.{yml,yaml,json}]
+indent_style = space
+indent_size = 2
+
+# Markdown indentation is semantic (nested lists, aligned tables, ASCII art),
+# so it is only required to be spaces, at any width.
+[*.md]
+trim_trailing_whitespace = false
+indent_size = 1
