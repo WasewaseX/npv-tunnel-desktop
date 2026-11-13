@@ -19,6 +19,11 @@ First Windows release.
 * Leak protection: IPv6 blackhole, QUIC block, LAN bypass, DoH through the tunnel.
 * Settings: ports, DNS, routing toggles, start with Windows, engine install, association
   toggle, proxy restore, data folder.
+* Per-user Inno Setup installer (`NpvTunnel-1.0.0-win-x64-setup.exe`): no UAC, one
+  SmartScreen prompt, registers the `.npvt` association (incl. Default Programs) and
+  ships the tunnel core inside the package so the first connection works offline.
+* 79 unit tests over the parser, importer, locked envelope, engine-config builder,
+  redaction and validators.
 * CI: `master-ci` v2 (lint/security/SAST on ubuntu) + a `windows-latest` release pipeline
   that builds, tests, bundles the pinned core, emits SHA-256 checksums and publishes a
   GitHub Release.

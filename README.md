@@ -25,14 +25,32 @@ window, no Electron, no browser engine, no telemetry.
 
 ## Install
 
-1. Download **`NpvTunnel-1.0.0-win-x64.zip`** and unpack it anywhere (no installer, no admin).
-2. Run `NpvTunnel.exe`. The tunnel engine (`core\xray.exe`) is already in the archive.
-3. Import a profile, pick a server, press the big button.
+**Recommended — the installer** (`NpvTunnel-1.0.0-win-x64-setup.exe`):
 
-**Prefer a single file?** Take `NpvTunnel-1.0.0-win-x64-portable.zip` — one self-contained
-`NpvTunnel.exe` (~63 MB, no .NET runtime needed) plus the same `core\` folder.
+1. Run it. Windows shows one SmartScreen prompt ("More info → Run anyway") because the
+   binary is not code-signed — signing certificates cost money, and this project has none.
+2. There is **no UAC prompt**: Setup installs into `%LOCALAPPDATA%\Programs\NPV Tunnel`.
+3. It registers the `.npvt` association for your user, so after setup you can **double-click
+   any `.npvt` file and it imports straight into the app** — the same one-tap flow the
+   Android app gives you with an `.npv` file.
 
-> The lite archive needs the **.NET 8 Desktop Runtime**. The portable build does not.
+Portable alternatives, if you would rather not install anything:
+
+| Archive | Size | Needs |
+|---|---|---|
+| `NpvTunnel-1.0.0-win-x64-portable.zip` | ~63 MB | nothing — self-contained single file |
+| `NpvTunnel-1.0.0-win-x64-lite.zip` | ~2 MB | the **.NET 8 Desktop Runtime** |
+
+Every release ships `npvtunnel-1.0.0-checksums.txt` (SHA-256) next to the binaries, and the
+bundled `core\xray.exe` is pinned by digest at build time.
+
+### First run
+
+1. Import a profile: double-click a `.npvt`, drag it onto the window, press the `+` button,
+   or paste a share link from the clipboard.
+2. Pick the server, press **CONNECT**.
+3. The Windows system proxy is set while the tunnel is up and restored on disconnect, on
+   exit, and after a crash — a stale proxy is detected and repaired on the next start.
 
 ## File formats
 
@@ -64,7 +82,7 @@ plain `net8.0` so they are unit-tested on any runner.
 ## Testing
 
 ```bash
-dotnet test          # 55 tests: parsers, importer, locked envelope, config builder, redaction
+dotnet test          # 79 tests: parsers, importer, locked envelope, config builder, redaction, validators
 ```
 
 The engine configuration builder is covered by tests that assert on the generated JSON —
