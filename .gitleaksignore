@@ -1,0 +1,12 @@
+# False positives, with the reason each one is here.
+#
+# be2bd15: gitleaks' jfrog-identity-token rule matches a 64-character hex digest
+# when it sits on the same line as the word "xray" (JFrog Xray is one of the
+# rule's keywords). The three matches are the SHA-256 pins of the public Xray
+# release binaries that this build accepts - they are in the source on purpose
+# and are not credentials. The digests were moved into named constants in
+# 3c5dcca so the rule stops matching; this entry only covers the commit that
+# introduced the layout.
+be2bd158d8125314466387c4972839436816d96a:src/NpvTunnel.Core/EngineIntegrity.cs:jfrog-identity-token:26
+be2bd158d8125314466387c4972839436816d96a:src/NpvTunnel.Core/EngineIntegrity.cs:jfrog-identity-token:27
+be2bd158d8125314466387c4972839436816d96a:src/NpvTunnel.Core/EngineIntegrity.cs:jfrog-identity-token:28
