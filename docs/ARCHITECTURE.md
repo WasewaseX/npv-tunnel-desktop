@@ -1,6 +1,6 @@
 # Architecture
 
-```
+```text
 ┌────────────────────────────── NpvTunnel.exe (WinExe, no console) ─────────────────────────────┐
 │  WPF shell (MainWindow + 4 views)                                                             │
 │      │ data binding                                                                           │

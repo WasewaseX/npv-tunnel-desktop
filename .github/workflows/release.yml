@@ -3,6 +3,9 @@ name: Release
 # Tag push (v1.2.3) -> build lite + portable zips, compile the per-user Inno
 # Setup installer that carries the .npvt association, publish a GitHub Release
 # with every artifact and a SHA-256 checksum file.
+#
+# No untrusted value is ever interpolated into a script body: versions reach
+# the steps through `env`, which is what the template-injection audit wants.
 
 on:
   push:
@@ -23,30 +26,32 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
-      - uses: actions/setup-dotnet@v6
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
           dotnet-version: '8.0.x'
 
       - name: Resolve version
         id: v
         shell: pwsh
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+          INPUT_VERSION: ${{ inputs.version }}
         run: |
-          if ('${{ github.ref_type }}' -eq 'tag') {
-            $version = '${{ github.ref_name }}'.TrimStart('v')
-          } else {
-            $version = '${{ inputs.version }}'
-          }
+          $version = if ($env:REF_TYPE -eq 'tag') { $env:REF_NAME.TrimStart('v') } else { $env:INPUT_VERSION }
           if ($version -notmatch '^\d+\.\d+\.\d+$') { throw "Unusable version '$version'" }
           "version=$version" >> $env:GITHUB_OUTPUT
           Write-Host "Building $version"
 
       - name: Build bundles
         shell: pwsh
-        run: ./scripts/build.ps1 -Version ${{ steps.v.outputs.version }}
+        env:
+          VERSION: ${{ steps.v.outputs.version }}
+        run: ./scripts/build.ps1 -Version $env:VERSION
 
       - name: Install Inno Setup
         shell: pwsh
@@ -58,60 +63,69 @@ jobs:
 
       - name: Compile installer
         shell: pwsh
+        env:
+          VERSION: ${{ steps.v.outputs.version }}
         run: |
-          Copy-Item dist/portable -Destination dist/portable-stage -Recurse -Force -ErrorAction SilentlyContinue
-          & $env:ISCC "/DMyAppVersion=${{ steps.v.outputs.version }}" installer/NpvTunnel.iss
+          & $env:ISCC "/DMyAppVersion=$env:VERSION" installer/NpvTunnel.iss
           if ($LASTEXITCODE -ne 0) { throw 'Inno Setup failed' }
-          $setup = Get-ChildItem dist/*setup*.exe
+          $setup = Get-ChildItem dist -Filter '*setup*.exe'
           if (-not $setup) { throw 'Installer was not produced' }
           Write-Host "Installer: $($setup.Name) ($([math]::Round($setup.Length/1MB,1)) MB)"
 
       - name: Checksums
         shell: pwsh
+        env:
+          VERSION: ${{ steps.v.outputs.version }}
         run: |
+          $out = "dist/npvtunnel-$env:VERSION-checksums.txt"
           Get-ChildItem dist -File |
             Where-Object { $_.Extension -in '.exe', '.zip' } |
             ForEach-Object { "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower())  $($_.Name)" } |
             Sort-Object |
-            Out-File "dist/npvtunnel-${{ steps.v.outputs.version }}-checksums.txt" -Encoding ascii
-          Get-Content "dist/npvtunnel-${{ steps.v.outputs.version }}-checksums.txt"
+            Out-File $out -Encoding ascii
+          Get-Content $out
 
       - name: Create GitHub Release
         shell: pwsh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.v.outputs.version }}
+          COMMIT: ${{ github.sha }}
         run: |
-          $tag = "v${{ steps.v.outputs.version }}"
+          $tag = "v$env:VERSION"
           $notes = @"
-          ## NPV Tunnel Desktop ${{ steps.v.outputs.version }}
+          ## NPV Tunnel Desktop $env:VERSION
 
           Native Windows (WPF) client for VLESS, VMess, Trojan, Shadowsocks, SOCKS5,
           HTTP and Hysteria2 tunnels. No console window, no browser wrapper.
 
           ### Download
-          * **NpvTunnel-*-setup.exe** - recommended. Per-user install, no administrator
-            rights, one SmartScreen prompt, registers the ``.npvt`` association so a
-            double-click imports a configuration straight into the app.
-          * **NpvTunnel-*-portable.zip** - self-contained single file; run it from
-            anywhere, nothing installed.
-          * **NpvTunnel-*-lite.zip** - smallest download, requires the .NET 8 Desktop
-            Runtime.
 
-          Verify with ``npvtunnel-${{ steps.v.outputs.version }}-checksums.txt``.
+          * **NpvTunnel-$env:VERSION-win-x64-setup.exe** - recommended. Per-user install,
+            no administrator rights, one SmartScreen prompt, registers the ``.npvt``
+            association so a double-click imports a configuration into the app.
+          * **NpvTunnel-$env:VERSION-win-x64-portable.zip** - self-contained single file;
+            run it from anywhere, nothing installed.
+          * **NpvTunnel-$env:VERSION-win-x64-lite.zip** - smallest download, needs the
+            .NET 8 Desktop Runtime.
 
-          Built by GitHub Actions from ${{ github.sha }}.
+          Verify anything you download against ``npvtunnel-$env:VERSION-checksums.txt``.
+
+          Built by GitHub Actions from commit $env:COMMIT.
           "@
           $notes | Out-File notes.md -Encoding utf8
-          $files = Get-ChildItem dist -File | Where-Object { $_.Extension -in '.exe', '.zip', '.txt' } | ForEach-Object { $_.FullName }
+          $files = Get-ChildItem dist -File |
+            Where-Object { $_.Extension -in '.exe', '.zip', '.txt' } |
+            ForEach-Object { $_.FullName }
           if (gh release view $tag 2>$null) {
             gh release upload $tag @files --clobber
             gh release edit $tag --notes-file notes.md
           } else {
-            gh release create $tag @files --title "NPV Tunnel Desktop ${{ steps.v.outputs.version }}" --notes-file notes.md
+            gh release create $tag @files --title "NPV Tunnel Desktop $env:VERSION" --notes-file notes.md
           }
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.0
         with:
-          name: npvtunnel-${{ steps.v.outputs.version }}
+          name: npvtunnel-windows-x64
           path: dist/*
           retention-days: 30

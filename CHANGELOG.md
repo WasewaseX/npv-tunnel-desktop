@@ -5,6 +5,7 @@
 First Windows release.
 
 ### Added
+
 * Native WPF desktop UI (dark theme, custom chrome, no console window).
 * Dashboard with circular connect control, live uptime / ping / throughput.
 * Server library with search, ping-all, per-server connect and removal.
@@ -29,6 +30,7 @@ First Windows release.
   GitHub Release.
 
 ### Known limitations
+
 * System-proxy mode only — no TUN capture yet.
 * Hysteria2 / WireGuard profiles are parsed and stored but need a future sing-box backend.
 * Unsigned binaries (SmartScreen warning on first run).

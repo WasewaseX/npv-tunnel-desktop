@@ -4,7 +4,7 @@
 
 * Version: **v26.11.9** (pinned)
 * License: **MPL-2.0**
-* Upstream: https://github.com/XTLS/Xray-core
+* Upstream: <https://github.com/XTLS/Xray-core>
 * Distribution: bundled as `core\xray.exe` in the release archives, and optionally fetched
   at runtime by Settings → *Install core*.
 * Integrity: archive SHA-256 `1262522266337b824f07beb8e1375786b437683b3890105469088f8e17e0a69d`

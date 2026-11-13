@@ -21,12 +21,10 @@ permissions:
 jobs:
   master:
     name: master-ci
-    uses: WasewaseX/master-ci/.github/workflows/master-ci.yml@v2.12.0
+    # Pinned to the v2.12.0 tag commit: a mutable tag could be moved under us.
+    uses: WasewaseX/master-ci/.github/workflows/master-ci.yml@53e85397bc2f1d097d1665e8976873f1adfdc439
     with:
       profile: standard
-      # helpers are fetched from the template repo; pin them to the same tag
-      # as the reusable workflow so a mutable branch can never be pulled in
-      template_ref: 'v2.12.0'
       runs_on: ubuntu-latest
       run_csharp: 'true'
       dotnet_version: '8.0.x'
@@ -39,11 +37,14 @@ jobs:
       run_ruby: 'false'
       run_php: 'false'
       run_docker: 'false'
+      # helpers are fetched from the template repo; pin them to the same tag as
+      # the reusable workflow so a mutable branch can never be pulled in
+      template_ref: 'v2.12.0'
       # The core was recovered from the shipped 1.0.0 binaries, so its baseline
-      # complexity is what the decompiler produced. The blocking ceiling is
-      # raised to match that baseline today, and the new-code gates below are
-      # what actually protects the tree: every line added from here on must be
-      # at zero blocking findings with cognitive/cyclomatic complexity <= 15.
+      # complexity is whatever the decompiler produced. The blocking ceiling is
+      # raised to match that baseline today; the new-code gates below are what
+      # actually protect the tree, because every line added from here on must
+      # have zero blocking findings and cognitive/cyclomatic complexity <= 15.
       fail_on_ai_slop: true
       ai_slop_max_score: 25
       diff_base: 'origin/main'
@@ -64,11 +65,11 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
-      - uses: actions/setup-dotnet@v6
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
           dotnet-version: '8.0.x'
 

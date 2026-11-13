@@ -71,7 +71,7 @@ vendor-specific encryption.
 
 For providers who do not want users to read or reshare the endpoint:
 
-```
+```text
 base64url( "NPVT-LOCK1" ‖ salt[16] ‖ nonce[12] ‖ tag[16] ‖ ciphertext )
 ```
 
