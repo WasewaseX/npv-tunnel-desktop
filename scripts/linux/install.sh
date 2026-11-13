@@ -4,7 +4,8 @@
 #   PREFIX=/opt/x sh install.sh  install somewhere else
 set -eu
 
-here=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+here=$(dirname -- "$0")
+here=$(cd -- "$here" && pwd)
 prefix=${PREFIX:-"$HOME/.local"}
 lib="$prefix/lib/npvtunnel"
 bin="$prefix/bin"

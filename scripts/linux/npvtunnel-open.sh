@@ -4,7 +4,8 @@
 # import has to report refused or broken configurations to someone.
 set -eu
 
-lib=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+lib=$(dirname -- "$0")
+lib=$(cd -- "$lib" && pwd)
 cli="$lib/npvtunnel"
 
 if [ "$#" -eq 0 ]; then
