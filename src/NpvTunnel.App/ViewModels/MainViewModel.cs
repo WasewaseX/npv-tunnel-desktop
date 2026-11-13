@@ -58,6 +58,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
     private long _totalOut;
 
+    private double _progressPercent = 1.5;
+
     private double _downloadRate;
 
     private double _uploadRate;
@@ -208,6 +210,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         {
             if (Set(ref _selectedProfile, value, "SelectedProfile"))
             {
+                OnPropertyChanged(nameof(SmartRouteSubtitle));
                 OnPropertyChanged("HasSelection");
                 OnPropertyChanged("ActiveName");
                 OnPropertyChanged("ActiveEndpoint");
@@ -320,6 +323,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     public RelayCommand NavigateCommand { get; }
 
     public RelayCommand FocusSearchCommand { get; }
+
+    public RelayCommand ToggleSavedCommand { get; }
 
     public bool SetSystemProxy
     {
@@ -546,6 +551,44 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
     public string ProfileCountLabel => $"({Profiles.Count})";
 
+    private bool _savedExpanded = true;
+
+    private bool _searchVisible;
+
+    /// <summary>Saved group chevron state, as on the phone: down when open.</summary>
+    public bool SavedExpanded
+    {
+        get => _savedExpanded;
+        private set
+        {
+            if (Set(ref _savedExpanded, value, nameof(SavedExpanded)))
+            {
+                OnPropertyChanged(nameof(SavedChevron));
+            }
+        }
+    }
+
+    public string SavedChevron => _savedExpanded ? "\uE70D" : "\uE76C";
+
+    public bool IsSearchVisible
+    {
+        get => _searchVisible;
+        private set => Set(ref _searchVisible, value, nameof(IsSearchVisible));
+    }
+
+    public string SmartRouteSubtitle => SelectedProfile is null
+        ? "Fastest · no members yet"
+        : "Fastest · " + SelectedProfile.Name;
+
+    public string GlobalCountLabel => "(" + Profiles.Count(p => p.PingGood) + ")";
+
+    /// <summary>Ratio for the teal-to-mint bar under Global Network.</summary>
+    public GridLength SessionBar => new(MaxStar(_progressPercent), GridUnitType.Star);
+
+    public GridLength SessionBarRest => new(MaxStar(100 - _progressPercent), GridUnitType.Star);
+
+    private static double MaxStar(double value) => Math.Clamp(value, 1, 100);
+
     public string LogCountLabel => Logs.Count == 1 ? "1 entry" : $"{Logs.Count} entries";
 
     public event EventHandler? SearchFocusRequested;
@@ -592,7 +635,12 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         };
         FocusSearchCommand = new RelayCommand(delegate
         {
+            IsSearchVisible = true;
             SearchFocusRequested?.Invoke(this, EventArgs.Empty);
+        });
+        ToggleSavedCommand = new RelayCommand(delegate
+        {
+            SavedExpanded = !SavedExpanded;
         });
         ConnectCommand = new AsyncRelayCommand(ToggleConnectionAsync, () => !IsBusy);
         ImportCommand = new AsyncRelayCommand(delegate
@@ -826,6 +874,9 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     {
         OnPropertyChanged("DownloadText");
         OnPropertyChanged("UploadText");
+        _progressPercent = Math.Clamp(1.5 + ((_totalIn + _totalOut) / (100.0 * 1024 * 1024 * 1024)) * 100, 1.5, 100);
+        OnPropertyChanged("SessionBar");
+        OnPropertyChanged("SessionBarRest");
         OnPropertyChanged("TotalText");
         OnPropertyChanged("DownlinkTotal");
         OnPropertyChanged("UplinkTotal");
@@ -943,8 +994,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
     public void ImportFromPath(string path)
     {
-        ImportResult importResult = NpvtImporter.ImportFile(path);
-        if (importResult.Error == ImportError.EncryptedNeedsPassword)
+        ImportBatch batch = ImportFile(path);
+        if (batch.Error == ImportError.EncryptedNeedsPassword)
         {
             Application current = Application.Current;
             string text = Dialogs.AskPassphrase((current != null) ? current.MainWindow : null, Path.GetFileName(path));
@@ -953,15 +1004,15 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
                 StatusDetail = "Import cancelled.";
                 return;
             }
-            importResult = NpvtImporter.ImportFile(path, text);
+            batch = NpvtImporter.ImportAll(File.ReadAllText(path), text, Path.GetFileName(path));
         }
-        CompleteImport(importResult, Path.GetFileName(path));
+        CompleteImport(batch, Path.GetFileName(path));
     }
 
     public void ImportFromText(string text, string source)
     {
-        ImportResult importResult = NpvtImporter.ImportText(text, null, source);
-        if (importResult.Error == ImportError.EncryptedNeedsPassword)
+        ImportBatch batch = NpvtImporter.ImportAll(text, null, source);
+        if (batch.Error == ImportError.EncryptedNeedsPassword)
         {
             Application current = Application.Current;
             string text2 = Dialogs.AskPassphrase((current != null) ? current.MainWindow : null, "locked configuration");
@@ -970,33 +1021,86 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
                 StatusDetail = "Import cancelled.";
                 return;
             }
-            importResult = NpvtImporter.ImportText(text, text2, source);
+            batch = NpvtImporter.ImportAll(text, text2, source);
         }
-        CompleteImport(importResult, source);
+        CompleteImport(batch, source);
     }
 
-    private void CompleteImport(ImportResult result, string source)
+    private void CompleteImport(ImportBatch batch, string source)
     {
-        if (!result.Success || result.Profile == null)
+        if (!batch.Success)
         {
-            StatusDetail = result.Message;
-            _log.Warn("import", source + ": " + result.Message);
+            string message = string.IsNullOrWhiteSpace(batch.Message) ? "Nothing could be imported from that source." : batch.Message;
+            StatusDetail = message;
+            _log.Warn("import", source + ": " + message);
             Application current = Application.Current;
-            Dialogs.Show((current != null) ? current.MainWindow : null, "Import failed", result.Message, (MessageBoxImage)48);
+            Dialogs.Show((current != null) ? current.MainWindow : null, "Import failed", message, (MessageBoxImage)48);
             return;
         }
-        ProfileItemViewModel profileItemViewModel = new ProfileItemViewModel(_profiles.Add(result.Profile));
-        Profiles.Add(profileItemViewModel);
-        SelectedProfile = profileItemViewModel;
+
+        ProfileItemViewModel? first = null;
+        foreach (Profile profile in batch.Profiles)
+        {
+            ProfileItemViewModel item = new ProfileItemViewModel(_profiles.Add(profile));
+            Profiles.Add(item);
+            first ??= item;
+        }
+
+        if (first != null)
+        {
+            SelectedProfile = first;
+        }
+
         OnPropertyChanged("HasProfiles");
         OnPropertyChanged("HasNoProfiles");
-        foreach (string warning in result.Warnings)
+
+        foreach (string warning in batch.Warnings)
         {
             _log.Warn("import", warning);
         }
-        StatusDetail = "Imported “" + profileItemViewModel.Name + "”.";
-        Page = "dashboard";
-        RefreshPingForAsync(profileItemViewModel);
+
+        foreach (ImportResult result in batch.Results.Where(r => !r.Success))
+        {
+            _log.Warn("import", result.Message);
+        }
+
+        foreach (ImportResult result in batch.Results.Where(r => r.Success))
+        {
+            foreach (string warning in result.Warnings)
+            {
+                _log.Warn("import", warning);
+            }
+        }
+
+        if (batch.ImportedCount == 1)
+        {
+            StatusDetail = "Imported “" + first!.Name + "”.";
+        }
+        else
+        {
+            string skipped = batch.FailedCount > 0 ? $" ({batch.FailedCount} skipped)" : string.Empty;
+            StatusDetail = $"Imported {batch.ImportedCount} configurations{skipped}.";
+        }
+
+        _log.Info("import", $"Imported {batch.ImportedCount} configuration(s) from {source}.");
+        Page = "configs";
+
+        if (first != null)
+        {
+            RefreshPingForAsync(first);
+        }
+    }
+
+    private ImportBatch ImportFile(string path)
+    {
+        try
+        {
+            return NpvtImporter.ImportAll(File.ReadAllText(path), null, Path.GetFileName(path));
+        }
+        catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+        {
+            return new ImportBatch { Error = ImportError.UnknownFormat, Message = "The file could not be read: " + ex.Message };
+        }
     }
 
     private void ExportProfile(ProfileItemViewModel? item)

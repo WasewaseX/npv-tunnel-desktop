@@ -75,6 +75,21 @@ public static class NpvtImporter
             }
             return AttachSource(importResult, source);
         }
+        // The vendor's own containers: "NPVT1" + comma-separated encrypted blocks.
+        if (NpvtContainer.Identify(text2) == NpvtContainer.ContainerKind.Npvt)
+        {
+            ImportBatch containerBatch = ImportAll(text2, password, source);
+            ImportResult first = containerBatch.Results.FirstOrDefault((ImportResult r) => r.Success) ?? containerBatch.Results.FirstOrDefault();
+            if (first != null)
+            {
+                return first;
+            }
+            return ImportResult.Fail(containerBatch.Error == ImportError.None ? ImportError.UnknownFormat : containerBatch.Error, containerBatch.Message);
+        }
+        if (NpvtContainer.Identify(text2) == NpvtContainer.ContainerKind.Npvs)
+        {
+            return ImportResult.Fail(ImportError.LegacyEncryptedConfig, NpvtContainer.ExplainUnsupported(text2));
+        }
         if (UriParser.LooksLikeUri(text2))
         {
             ImportResult importResult2 = UriParser.Parse(text2);
@@ -106,7 +121,7 @@ public static class NpvtImporter
         {
             return ImportResult.Fail(ImportError.LegacyEncryptedConfig, "This looks like a legacy encrypted NPV blob (.npv / .npv4 / .inpv). It is encrypted with a closed, proprietary format that only the vendor's mobile app can read, so importing it would mean shipping their binary parser. Ask the provider for an open .npvt (npvt/1) file or a share link instead.");
         }
-        return ImportResult.Fail(ImportError.UnknownFormat, "Unrecognised configuration. Supported inputs: vless/vmess/trojan/ss/socks/http/hysteria2 share links and npvt/1 JSON documents.");
+        return ImportResult.Fail(ImportError.UnknownFormat, "Unrecognised configuration. Supported inputs: NPV Tunnel .npvt containers, vless/vmess/trojan/ss/socks/http/hysteria2 share links, and npvt/1 JSON documents.");
     }
 
     public static bool IsJsonDocument(string text)
@@ -237,6 +252,116 @@ public static class NpvtImporter
             flag = flag2;
         }
         return flag;
+    }
+
+    /// <summary>
+    /// Imports everything in <paramref name="text"/>: a vendor .npvt container with
+    /// dozens of profiles, a JSON array, a share link or an npvt/1 document.
+    /// </summary>
+    public static ImportBatch ImportAll(string text, string? password = null, string source = "")
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return new ImportBatch { Error = ImportError.Empty, Message = "The configuration is empty." };
+        }
+
+        string trimmed = text.Trim();
+
+        if (NpvtContainer.Identify(trimmed) == NpvtContainer.ContainerKind.Npvs)
+        {
+            return new ImportBatch
+            {
+                Error = ImportError.LegacyEncryptedConfig,
+                Message = NpvtContainer.ExplainUnsupported(trimmed)
+            };
+        }
+
+        if (NpvtContainer.Identify(trimmed) != NpvtContainer.ContainerKind.Npvt)
+        {
+            ImportResult single = ImportText(trimmed, password, source);
+            return new ImportBatch
+            {
+                Results = new[] { single },
+                Error = single.Success ? ImportError.None : single.Error,
+                Message = single.Success ? string.Empty : single.Message
+            };
+        }
+
+        if (!NpvtContainer.TryDecrypt(trimmed, out IReadOnlyList<string> payloads, out string decryptError))
+        {
+            return new ImportBatch { Error = ImportError.UnknownFormat, Message = decryptError };
+        }
+
+        var results = new List<ImportResult>();
+        var batchWarnings = new List<string>();
+        bool sawLockBlock = false;
+
+        foreach (string payload in payloads)
+        {
+            string block = payload.Trim();
+            if (block.Length == 0)
+            {
+                continue;
+            }
+
+            // The version chunk is literally "1"; the lockConfig chunk is an object
+            // without a v2rayProfile. Both are expected and skipped silently.
+            if (block.Length <= 8 && !block.StartsWith('{') && !block.StartsWith('['))
+            {
+                continue;
+            }
+
+            if (block.StartsWith('[') || block.StartsWith('{'))
+            {
+                IReadOnlyList<Profile> profiles = NpvConfigReader.ReadPayload(block, batchWarnings);
+                if (profiles.Count == 0)
+                {
+                    sawLockBlock = true;
+                    continue;
+                }
+
+                foreach (Profile profile in profiles)
+                {
+                    var warnings = new List<string>();
+                    if (profile.AllowInsecure)
+                    {
+                        // A channel config may not silently disable certificate checks.
+                        profile.AllowInsecure = false;
+                        warnings.Add("This configuration asked to skip TLS verification; that request was ignored.");
+                    }
+
+                    results.Add(Validate(profile, warnings, source));
+                }
+
+                continue;
+            }
+
+            if (UriParser.LooksLikeUri(block))
+            {
+                results.Add(UriParser.Parse(block));
+            }
+        }
+
+        if (results.Count == 0)
+        {
+            return new ImportBatch
+            {
+                Error = ImportError.UnknownFormat,
+                Message = sawLockBlock
+                    ? "This .npvt container opened, but it holds no server configuration - only the author's lock settings."
+                    : "This .npvt container opened, but none of its entries could be read as a configuration.",
+                Warnings = batchWarnings
+            };
+        }
+
+        int failed = results.Count((ImportResult r) => !r.Success);
+        string summary = failed == 0 ? string.Empty : failed + " of " + results.Count + " entries were skipped.";
+        return new ImportBatch
+        {
+            Results = results,
+            Message = summary,
+            Warnings = batchWarnings
+        };
     }
 
     private static bool LooksLikeLegacyBlob(string text)

@@ -4,7 +4,7 @@
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         xmlns:views="clr-namespace:NpvTunnel.App.Views"
         Title="NPV Tunnel"
-        Width="1180" Height="790" MinWidth="1020" MinHeight="700"
+        Width="760" Height="900" MinWidth="560" MinHeight="640"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         ResizeMode="CanResize" AllowDrop="True" UseLayoutRounding="True"
         TextOptions.TextFormattingMode="Ideal" WindowStartupLocation="CenterScreen"
@@ -16,133 +16,106 @@
                             UseAeroCaptionButtons="False" />
     </shell:WindowChrome.WindowChrome>
 
-    <Border x:Name="WindowBorder" CornerRadius="14" BorderThickness="1"
+    <!-- The window is a phone-shaped column on purpose: this is the Android
+         layout, kept 1:1, with only the window controls added on the top bar. -->
+    <Border x:Name="WindowBorder" CornerRadius="16" BorderThickness="1"
             BorderBrush="{StaticResource Stroke}" Background="{StaticResource AppBackground}">
         <Border.Effect>
-            <DropShadowEffect BlurRadius="32" ShadowDepth="12" Opacity="0.6" Color="#FF000000" />
+            <DropShadowEffect BlurRadius="34" ShadowDepth="14" Opacity="0.65" Color="#FF000000" />
         </Border.Effect>
 
         <Grid>
             <Grid.RowDefinitions>
-                <RowDefinition Height="52" />
+                <RowDefinition Height="40" />
+                <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="76" />
             </Grid.RowDefinitions>
 
-            <!-- ================= title bar ================= -->
+            <!-- ============ window controls (drag strip) ============ -->
             <Grid Grid.Row="0" x:Name="TitleBar" Background="Transparent" MouseLeftButtonDown="OnTitleBarDrag">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
+                <TextBlock Text="NPV Tunnel" Margin="20,0,0,0" VerticalAlignment="Center"
+                           FontSize="11" Foreground="{StaticResource Muted}" Opacity="0.65" />
 
-                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="18,0,0,0">
-                    <Border Width="24" Height="24" CornerRadius="6" Background="{StaticResource AccentGradient}">
-                        <Path Data="M7,19 L7,7 L17,19 L17,7" Stroke="#FF06231B" StrokeThickness="2.2"
-                              StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
-                              Stretch="Uniform" Margin="6" />
-                    </Border>
-                    <TextBlock Text="NPV TUNNEL" Margin="11,0,0,0" VerticalAlignment="Center"
-                               FontFamily="{StaticResource MonoFont}" FontSize="11.5" FontWeight="Bold"
-                               Foreground="{StaticResource Accent}" />
-                    <TextBlock Text="{Binding AppVersion, StringFormat=v{0}}" Margin="9,1,0,0"
-                               VerticalAlignment="Center" FontFamily="{StaticResource MonoFont}"
-                               FontSize="9.5" Foreground="{StaticResource Muted}" />
-                </StackPanel>
-
-                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,10,0">
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,6,0">
                     <Button Style="{StaticResource WindowButton}" Content="&#xE921;" ToolTip="Minimise" Click="OnMinimise" />
                     <Button Style="{StaticResource WindowButton}" Content="&#xE922;" ToolTip="Maximise" Click="OnMaximise" />
                     <Button Style="{StaticResource CloseButton}" Content="&#xE8BB;" ToolTip="Close" Click="OnClose" />
                 </StackPanel>
             </Grid>
 
-            <!-- ================= body ================= -->
-            <Grid Grid.Row="1">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="216" />
-                    <ColumnDefinition Width="*" />
-                </Grid.ColumnDefinitions>
+            <!-- ============ centred wordmark, as on the phone ============ -->
+            <Grid Grid.Row="1" Margin="0,4,0,14">
+                <StackPanel HorizontalAlignment="Center">
+                    <TextBlock Text="NPV TUNNEL" HorizontalAlignment="Center"
+                               FontFamily="{StaticResource MonoFont}" FontSize="13.5" FontWeight="Bold"
+                               Foreground="{StaticResource Accent}" />
+                    <TextBlock Text="{Binding AppVersion, StringFormat=v{0} (desktop)}" HorizontalAlignment="Center"
+                               Margin="0,3,0,0" FontFamily="{StaticResource MonoFont}" FontSize="10"
+                               Foreground="{StaticResource Muted}" />
+                </StackPanel>
 
-                <Grid Grid.Column="0" Margin="10,2,4,12">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="*" />
-                        <RowDefinition Height="Auto" />
-                    </Grid.RowDefinitions>
-
-                    <StackPanel Grid.Row="0" Margin="2,8,2,16">
-                        <RadioButton Style="{StaticResource NavItem}" GroupName="nav"
-                                     Command="{Binding NavigateCommand}" CommandParameter="dashboard"
-                                     IsChecked="{Binding IsDashboard, Mode=OneWay}">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="&#xE80F;" FontFamily="Segoe MDL2 Assets" FontSize="14" VerticalAlignment="Center"
-                                           Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}" />
-                                <TextBlock Text="HOME" Margin="11,0,0,0" VerticalAlignment="Center"
-                                           Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}" />
-                            </StackPanel>
-                        </RadioButton>
-
-                        <RadioButton Style="{StaticResource NavItem}" GroupName="nav"
-                                     Command="{Binding NavigateCommand}" CommandParameter="servers"
-                                     IsChecked="{Binding IsServers, Mode=OneWay}">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="&#xE753;" FontFamily="Segoe MDL2 Assets" FontSize="14" VerticalAlignment="Center"
-                                           Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}" />
-                                <TextBlock Text="CONFIGS" Margin="11,0,0,0" VerticalAlignment="Center"
-                                           Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}" />
-                            </StackPanel>
-                        </RadioButton>
-
-                        <RadioButton Style="{StaticResource NavItem}" GroupName="nav"
-                                     Command="{Binding NavigateCommand}" CommandParameter="logs"
-                                     IsChecked="{Binding IsLogs, Mode=OneWay}">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="&#xE946;" FontFamily="Segoe MDL2 Assets" FontSize="14" VerticalAlignment="Center"
-                                           Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}" />
-                                <TextBlock Text="LOGS" Margin="11,0,0,0" VerticalAlignment="Center"
-                                           Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}" />
-                            </StackPanel>
-                        </RadioButton>
-
-                        <RadioButton Style="{StaticResource NavItem}" GroupName="nav"
-                                     Command="{Binding NavigateCommand}" CommandParameter="settings"
-                                     IsChecked="{Binding IsSettings, Mode=OneWay}">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="&#xE712;" FontFamily="Segoe MDL2 Assets" FontSize="14" VerticalAlignment="Center"
-                                           Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}" />
-                                <TextBlock Text="MORE" Margin="11,0,0,0" VerticalAlignment="Center"
-                                           Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}" />
-                            </StackPanel>
-                        </RadioButton>
-                    </StackPanel>
-
-                    <Border Grid.Row="2" Style="{StaticResource CardStyle}" Padding="13,11">
-                        <StackPanel>
-                            <StackPanel Orientation="Horizontal">
-                                <Ellipse Width="7" Height="7" VerticalAlignment="Center" Fill="{Binding StatusAccent}" />
-                                <TextBlock Text="{Binding StatusBracket}" Margin="7,0,0,0"
-                                           FontFamily="{StaticResource MonoFont}" FontSize="9.5"
-                                           FontWeight="Bold" TextTrimming="CharacterEllipsis" />
-                            </StackPanel>
-                            <TextBlock Text="{Binding ListenPorts}" Style="{StaticResource Mono}" FontSize="10" Margin="0,7,0,0" />
-                            <TextBlock Text="{Binding EngineStatusText}" Style="{StaticResource Mono}" FontSize="10"
-                                       Opacity="0.7" Margin="0,2,0,0" TextTrimming="CharacterEllipsis" />
-                        </StackPanel>
-                    </Border>
-                </Grid>
-
-                <Grid Grid.Column="1" Margin="6,2,12,12">
-                    <views:DashboardView DataContext="{Binding}"
-                                         Visibility="{Binding IsDashboard, Converter={StaticResource BoolToVis}}" />
-                    <views:ServersView DataContext="{Binding}"
-                                       Visibility="{Binding IsServers, Converter={StaticResource BoolToVis}}" />
-                    <views:LogsView DataContext="{Binding}"
-                                    Visibility="{Binding IsLogs, Converter={StaticResource BoolToVis}}" />
-                    <views:SettingsView DataContext="{Binding}"
-                                        Visibility="{Binding IsSettings, Converter={StaticResource BoolToVis}}" />
-                </Grid>
+                <!-- badge button, top-right on HOME, exactly where the phone puts it -->
+                <Button Style="{StaticResource RowIcon}" Content="&#xE7EF;" HorizontalAlignment="Right"
+                        VerticalAlignment="Top" Margin="0,0,20,0" Width="34" Height="34"
+                        Background="#FFF0C24A" Foreground="#FF1B1206" ToolTip="More"
+                        Command="{Binding NavigateCommand}" CommandParameter="settings" />
             </Grid>
+
+            <!-- ============ content ============ -->
+            <Grid Grid.Row="2" Margin="20,0,20,0">
+                <views:DashboardView DataContext="{Binding}"
+                                     Visibility="{Binding IsDashboard, Converter={StaticResource BoolToVis}}" />
+                <views:ServersView DataContext="{Binding}"
+                                   Visibility="{Binding IsServers, Converter={StaticResource BoolToVis}}" />
+                <views:LogsView DataContext="{Binding}"
+                                Visibility="{Binding IsLogs, Converter={StaticResource BoolToVis}}" />
+                <views:SettingsView DataContext="{Binding}"
+                                    Visibility="{Binding IsSettings, Converter={StaticResource BoolToVis}}" />
+            </Grid>
+
+            <!-- ============ floating action pill (CONFIGS) ============ -->
+            <Border Grid.Row="3" HorizontalAlignment="Center" Margin="0,0,0,-24"
+                    Background="{StaticResource PillBg}" BorderBrush="{StaticResource PillStroke}"
+                    BorderThickness="1" CornerRadius="30" Padding="10,7"
+                    Visibility="{Binding IsServers, Converter={StaticResource BoolToVis}}">
+                <StackPanel Orientation="Horizontal">
+                    <Button Style="{StaticResource RowIcon}" Content="&#xE768;" ToolTip="Connect"
+                            Foreground="{StaticResource Accent}" Command="{Binding ConnectCommand}" />
+                    <Button Style="{StaticResource RowIcon}" Content="&#xE740;" ToolTip="Ping all"
+                            Foreground="{StaticResource Teal}" Command="{Binding PingAllCommand}" />
+                    <Button Style="{StaticResource RowIcon}" Content="&#xE72C;" ToolTip="Refresh"
+                            Foreground="{StaticResource Teal}" Command="{Binding PingAllCommand}" />
+                    <Button Style="{StaticResource RowIcon}" Content="&#xE721;" ToolTip="Search"
+                            Foreground="{StaticResource Teal}" Command="{Binding FocusSearchCommand}" />
+                    <Button Style="{StaticResource RowIcon}" Content="&#xE9E9;" ToolTip="Settings"
+                            Foreground="{StaticResource Teal}" Command="{Binding NavigateCommand}"
+                            CommandParameter="settings" />
+                    <Button Content="+" Width="40" Height="40" Margin="6,0,0,0" Padding="0,0,0,3"
+                            FontSize="22" Style="{StaticResource RoundAccentButton}"
+                            ToolTip="Add a configuration" Command="{Binding ImportCommand}" />
+                </StackPanel>
+            </Border>
+
+            <!-- ============ bottom navigation ============ -->
+            <Border Grid.Row="4" Background="{StaticResource NavBar}" CornerRadius="0,0,16,16"
+                    BorderBrush="{StaticResource Stroke}" BorderThickness="0,1,0,0" Padding="0,10,0,8">
+                <UniformGrid Columns="4" VerticalAlignment="Center">
+                    <RadioButton Style="{StaticResource BottomNav}" GroupName="nav" Tag="&#xE80F;"
+                                 Content="HOME" Command="{Binding NavigateCommand}" CommandParameter="dashboard"
+                                 IsChecked="{Binding IsDashboard, Mode=OneWay}" />
+                    <RadioButton Style="{StaticResource BottomNav}" GroupName="nav" Tag="&#xE753;"
+                                 Content="CONFIGS" Command="{Binding NavigateCommand}" CommandParameter="servers"
+                                 IsChecked="{Binding IsServers, Mode=OneWay}" />
+                    <RadioButton Style="{StaticResource BottomNav}" GroupName="nav" Tag="&#xE946;"
+                                 Content="LOGS" Command="{Binding NavigateCommand}" CommandParameter="logs"
+                                 IsChecked="{Binding IsLogs, Mode=OneWay}" />
+                    <RadioButton Style="{StaticResource BottomNav}" GroupName="nav" Tag="&#xE712;"
+                                 Content="MORE" Command="{Binding NavigateCommand}" CommandParameter="settings"
+                                 IsChecked="{Binding IsSettings, Mode=OneWay}" />
+                </UniformGrid>
+            </Border>
         </Grid>
     </Border>
 </Window>

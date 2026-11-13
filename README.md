@@ -18,7 +18,7 @@ window, no Electron, no browser engine, no telemetry.
 | | |
 |---|---|
 | **Native GUI** | WPF, dark UI, custom window chrome. Ships as a GUI-subsystem binary — nothing ever opens a terminal window. |
-| **.npvt everywhere** | Double-click a `.npvt` in Explorer, drag one onto the window, import from the file dialog, or paste a share link. Registered per-user under `HKCU\Software\Classes` (no admin, fully reversible). |
+| **.npvt everywhere** | Double-click a real channel `.npvt` in Explorer, drag one onto the window, import from the file dialog, or paste a share link. Registered per-user under `HKCU\Software\Classes` (no admin, fully reversible). |
 | **Real tunnel** | VLESS (incl. REALITY), VMess, Trojan, Shadowsocks, SOCKS5 and HTTP outbounds via a pinned Xray-core. TCP / WS / gRPC / HTTPUpgrade / XHTTP / QUIC transports. |
 | **Leak protection** | IPv6 blackhole, QUIC block, LAN bypass, DNS-over-HTTPS through the tunnel, and proxy teardown on every exit path. |
 | **Local proxy** | SOCKS5 + HTTP on loopback, bound to `127.0.0.1` only. |
@@ -28,7 +28,7 @@ window, no Electron, no browser engine, no telemetry.
 
 ## Install
 
-**Recommended — the installer** (`NpvTunnel-1.0.1-win-x64-setup.exe`):
+**Recommended — the installer** (`NpvTunnel-1.0.2-win-x64-setup.exe`):
 
 1. Run it. Windows shows one SmartScreen prompt ("More info → Run anyway") because the
    binary is not code-signed — signing certificates cost money, and this project has none.
@@ -41,10 +41,10 @@ Portable alternatives, if you would rather not install anything:
 
 | Archive | Size | Needs |
 |---|---|---|
-| `NpvTunnel-1.0.1-win-x64-portable.zip` | ~66 MB | nothing — self-contained single file |
-| `NpvTunnel-1.0.1-win-x64-lite.zip` | ~2 MB + engine | the **.NET 8 Desktop Runtime** — if Windows offers to send you to a download page, you have the lite build; take the setup or the portable zip instead |
+| `NpvTunnel-1.0.2-win-x64-portable.zip` | ~66 MB | nothing — self-contained single file |
+| `NpvTunnel-1.0.2-win-x64-lite.zip` | ~2 MB + engine | the **.NET 8 Desktop Runtime** — if Windows offers to send you to a download page, you have the lite build; take the setup or the portable zip instead |
 
-Every release ships `npvtunnel-1.0.1-checksums.txt` (SHA-256) next to the binaries, and the
+Every release ships `npvtunnel-1.0.2-checksums.txt` (SHA-256) next to the binaries, and the
 bundled `core\xray.exe` is pinned by digest at build time.
 
 ### First run
@@ -60,6 +60,10 @@ bundled `core\xray.exe` is pinned by digest at build time.
 * **`.npvt` (npvt/1)** — the open, documented JSON schema this app speaks. See
   [docs/NPVT-FORMAT.md](docs/NPVT-FORMAT.md). Includes an optional AES-256-GCM "locked"
   envelope so providers can hand out configs users cannot read or reshare.
+* **Vendor `.npvt` containers** — the `NPVT1` files channels distribute, decoded
+  in-process (white-box AES-CTR) and imported whole: every profile in the file lands
+  in the library at once. `.npvs` (passphrase / app-key envelopes) is detected and
+  explained instead of being silently mis-parsed.
 * **Share links** — `vless://`, `vmess://`, `trojan://`, `ss://`, `socks://`, `http://`,
   `hysteria2://`.
 * **Legacy `.npv` / `.npv4` / `.inpv`** — detected and explained rather than parsed. Those
@@ -85,7 +89,7 @@ plain `net8.0` so they are unit-tested on any runner.
 ## Testing
 
 ```bash
-dotnet test          # 82 tests: parsers, importer, locked envelope, config builder, redaction, validators
+dotnet test          # 91 tests: parsers, importer, locked envelope, config builder, redaction, validators
 ```
 
 The engine configuration builder is covered by tests that assert on the generated JSON —

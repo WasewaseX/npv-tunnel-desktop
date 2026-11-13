@@ -6,16 +6,15 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d" d:DataContext="{d:DesignInstance Type=vm:MainViewModel}">
 
-    <Grid>
+    <Grid MaxWidth="620" HorizontalAlignment="Center">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
-            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <!-- LAST PING / PING header, exactly as in the reference -->
-        <Grid Grid.Row="0" Margin="4,2,4,14">
+        <!-- LAST PING / PING -->
+        <Grid Grid.Row="0" Margin="2,0,2,10">
             <StackPanel>
                 <TextBlock Text="LAST PING" Style="{StaticResource Eyebrow}" />
                 <TextBlock Text="{Binding PingText}" FontSize="14" FontWeight="SemiBold" Margin="0,4,0,0" />
@@ -26,110 +25,118 @@
                     Command="{Binding PingAllCommand}" />
         </Grid>
 
-        <!-- search + import -->
-        <Grid Grid.Row="1" Margin="0,0,0,10">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-            </Grid.ColumnDefinitions>
-            <TextBox x:Name="SearchBox" Grid.Column="0" Style="{StaticResource DarkTextBox}"
+        <!-- search, opened from the pill -->
+        <Border Grid.Row="1" Margin="0,0,0,10"
+                Visibility="{Binding IsSearchVisible, Converter={StaticResource BoolToVis}}">
+            <TextBox x:Name="SearchBox" Style="{StaticResource DarkTextBox}"
                      Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
                      Tag="Search by name, host or protocol" />
-            <Button Grid.Column="1" Content="IMPORT .NPVT" Style="{StaticResource PrimaryButton}"
-                    FontFamily="{StaticResource MonoFont}" FontSize="10.5" Margin="8,0,0,0"
-                    Command="{Binding ImportCommand}" />
-        </Grid>
+        </Border>
 
-        <!-- list -->
-        <Grid Grid.Row="2">
-            <StackPanel>
-                <!-- group header -->
-                <Border Style="{StaticResource GroupRowStyle}" Margin="0,0,0,7">
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <StackPanel Margin="0,0,0,8">
+
+                <!-- Smart Route -->
+                <Border x:Name="SmartRow" Style="{StaticResource GroupCard}" Background="{StaticResource RowTint}"
+                        BorderBrush="{StaticResource RowTintStroke}" Padding="14,12" Cursor="Hand"
+                        MouseLeftButtonUp="OnSmartRouteClick">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
-                        <TextBlock Grid.Column="0" Text="&#xE76C;" FontFamily="Segoe MDL2 Assets" FontSize="10"
-                                   Foreground="{StaticResource Muted}" VerticalAlignment="Center" Margin="0,0,10,0" />
-                        <StackPanel Grid.Column="1" Orientation="Horizontal">
-                            <TextBlock Text="SAVED" FontSize="13" FontWeight="SemiBold" />
-                            <TextBlock Text="{Binding ProfileCountLabel}" Style="{StaticResource Mono}"
-                                       Margin="8,0,0,0" VerticalAlignment="Center" />
+
+                        <TextBlock Grid.Column="0" Text="&#xE76C;" FontFamily="Segoe MDL2 Assets" FontSize="11"
+                                   Foreground="{StaticResource Text}" VerticalAlignment="Center" Margin="0,0,12,0" />
+
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                            <TextBlock Text="Smart Route" FontSize="14.5" FontWeight="SemiBold" />
+                            <TextBlock Text="{Binding SmartRouteSubtitle}" FontFamily="{StaticResource MonoFont}"
+                                       FontSize="10.5" Foreground="{StaticResource Muted}" Margin="0,3,0,0" />
                         </StackPanel>
-                        <TextBlock Grid.Column="2" Text="&#xE712;" FontFamily="Segoe MDL2 Assets" FontSize="12"
-                                   Foreground="{StaticResource Muted}" VerticalAlignment="Center" />
+
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Button Style="{StaticResource RowIcon}" Content="&#xE73E;" ToolTip="Use fastest"
+                                    Foreground="{StaticResource Accent}" Command="{Binding ConnectCommand}" />
+                            <Button Style="{StaticResource RowIcon}" Content="&#xE70F;" ToolTip="Export"
+                                    Command="{Binding ExportProfileCommand}" />
+                            <Button Style="{StaticResource RowIcon}" Content="&#xE74D;" ToolTip="Remove"
+                                    Command="{Binding RemoveProfileCommand}" />
+                        </StackPanel>
                     </Grid>
                 </Border>
 
-                <ListBox ItemsSource="{Binding ProfilesView}" SelectedItem="{Binding SelectedProfile}"
-                         Style="{StaticResource CleanListBox}" ScrollViewer.CanContentScroll="False">
-                    <ListBox.ItemTemplate>
+                <!-- Saved (n) group header -->
+                <Border Style="{StaticResource GroupCard}" Background="{StaticResource CardAlt}" Padding="14,12">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <Button Grid.Column="0" Style="{StaticResource RowIcon}" Width="22" Height="22"
+                                Margin="0,0,8,0" FontSize="10" Content="{Binding SavedChevron}"
+                                Command="{Binding ToggleSavedCommand}" ToolTip="Collapse or expand" />
+
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="Saved" FontSize="14.5" FontWeight="SemiBold" />
+                            <TextBlock Text="{Binding ProfileCountLabel}" FontFamily="{StaticResource MonoFont}"
+                                       FontSize="11.5" Foreground="{StaticResource Muted}"
+                                       VerticalAlignment="Center" Margin="8,1,0,0" />
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Button Style="{StaticResource RowIcon}" Content="&#xE73E;" ToolTip="Use"
+                                    Foreground="{StaticResource Accent}" Command="{Binding ConnectCommand}" />
+                            <Button Style="{StaticResource RowIcon}" Content="&#xE712;" ToolTip="More"
+                                    Command="{Binding NavigateCommand}" CommandParameter="settings" />
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- individual configurations -->
+                <ItemsControl ItemsSource="{Binding ProfilesView}"
+                              Visibility="{Binding SavedExpanded, Converter={StaticResource BoolToVis}}">
+                    <ItemsControl.ItemTemplate>
                         <DataTemplate DataType="{x:Type vm:ProfileItemViewModel}">
-                            <Border x:Name="Row" Style="{StaticResource CardStyle}" Padding="12,10">
+                            <Border x:Name="Row" Background="{StaticResource Row}" BorderBrush="{StaticResource Stroke}"
+                                    BorderThickness="1" CornerRadius="6" Padding="16,11" Margin="0,0,0,6"
+                                    MouseLeftButtonUp="OnProfileRowClick" Cursor="Hand">
                                 <Grid>
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto" />
-                                        <ColumnDefinition Width="Auto" />
                                         <ColumnDefinition Width="*" />
                                         <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
 
-                                    <TextBlock x:Name="Chevron" Grid.Column="0" Text="&#xE76C;"
-                                               FontFamily="Segoe MDL2 Assets" FontSize="10"
-                                               Foreground="{StaticResource Muted}" VerticalAlignment="Center"
-                                               Margin="0,0,10,0" />
-
-                                    <Border Grid.Column="1" Width="34" Height="34" CornerRadius="6"
-                                            Background="{StaticResource AccentSoft}" VerticalAlignment="Center"
-                                            Margin="0,0,12,0">
-                                        <TextBlock Text="{Binding Initial}" FontSize="14" FontWeight="Bold"
-                                                   FontFamily="{StaticResource MonoFont}"
-                                                   Foreground="{StaticResource Accent}"
-                                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                    </Border>
-
-                                    <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
                                         <TextBlock Text="{Binding Name}" FontSize="13.5" FontWeight="SemiBold"
                                                    TextTrimming="CharacterEllipsis" />
                                         <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
-                                            <TextBlock Text="{Binding Endpoint}" Style="{StaticResource Mono}" FontSize="11" />
-                                            <TextBlock Text="·" Margin="6,0" Style="{StaticResource Mono}" FontSize="11" />
-                                            <TextBlock Text="{Binding Chip}" Style="{StaticResource Mono}" FontSize="11" />
+                                            <TextBlock Text="{Binding Endpoint}" FontFamily="{StaticResource MonoFont}"
+                                                       FontSize="10.5" Foreground="{StaticResource Muted}" />
+                                            <TextBlock Text="{Binding Chip}" FontFamily="{StaticResource MonoFont}"
+                                                       FontSize="10.5" Foreground="{StaticResource Muted}"
+                                                       Margin="8,0,0,0" />
                                         </StackPanel>
                                     </StackPanel>
 
-                                    <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                                         <TextBlock Text="{Binding PingText}" VerticalAlignment="Center"
-                                                   FontFamily="{StaticResource MonoFont}" FontSize="11"
-                                                   Margin="0,0,6,0">
-                                            <TextBlock.Style>
-                                                <Style TargetType="TextBlock">
-                                                    <Setter Property="Foreground" Value="{StaticResource Muted}" />
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding PingGood}" Value="True">
-                                                            <Setter Property="Foreground" Value="{StaticResource Teal}" />
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </TextBlock.Style>
-                                        </TextBlock>
-
-                                        <Button Content="&#xE9D2;" Style="{StaticResource IconButton}"
-                                                ToolTip="Use this configuration"
-                                                Command="{Binding DataContext.SelectProfileCommand,
-                                                          RelativeSource={RelativeSource AncestorType=ListBox}}"
-                                                CommandParameter="{Binding}" />
-                                        <Button Content="&#xE70F;" Style="{StaticResource IconButton}"
-                                                ToolTip="Export as .npvt"
+                                                   FontFamily="{StaticResource MonoFont}" FontSize="10.5"
+                                                   Foreground="{StaticResource Muted}" Margin="0,0,8,0" />
+                                        <Button Style="{StaticResource RowIcon}" Content="&#xE72D;" ToolTip="Export"
                                                 Command="{Binding DataContext.ExportProfileCommand,
-                                                          RelativeSource={RelativeSource AncestorType=ListBox}}"
+                                                          RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                                 CommandParameter="{Binding}" />
-                                        <Button Content="&#xE74D;" Style="{StaticResource IconButton}"
-                                                ToolTip="Remove"
+                                        <Button Style="{StaticResource RowIcon}" Content="&#xE70F;" ToolTip="Edit"
+                                                Command="{Binding DataContext.ExportProfileCommand,
+                                                          RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                CommandParameter="{Binding}" />
+                                        <Button Style="{StaticResource RowIcon}" Content="&#xE74D;" ToolTip="Delete"
                                                 Command="{Binding DataContext.RemoveProfileCommand,
-                                                          RelativeSource={RelativeSource AncestorType=ListBox}}"
+                                                          RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                                 CommandParameter="{Binding}" />
                                     </StackPanel>
                                 </Grid>
@@ -141,65 +148,95 @@
                                         <MultiBinding Converter="{x:Static vm:IsSelectedConverter.Instance}">
                                             <Binding Path="." />
                                             <Binding Path="DataContext.SelectedProfile"
-                                                     RelativeSource="{RelativeSource AncestorType=ListBox}" />
+                                                     RelativeSource="{RelativeSource AncestorType=ItemsControl}" />
                                         </MultiBinding>
                                     </DataTrigger.Binding>
-                                    <Setter TargetName="Row" Property="Background" Value="{StaticResource Active}" />
-                                    <Setter TargetName="Row" Property="BorderBrush" Value="{StaticResource AccentBorder}" />
-                                    <Setter TargetName="Chevron" Property="Foreground" Value="{StaticResource Accent}" />
+                                    <Setter TargetName="Row" Property="BorderBrush" Value="{StaticResource Accent}" />
+                                    <Setter TargetName="Row" Property="Background" Value="{StaticResource RowTint}" />
                                 </DataTrigger>
                             </DataTemplate.Triggers>
                         </DataTemplate>
-                    </ListBox.ItemTemplate>
-                </ListBox>
-            </StackPanel>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
 
-            <!-- empty state -->
-            <Border Style="{StaticResource CardStyle}" Padding="36"
-                    Visibility="{Binding HasNoProfiles, Converter={StaticResource BoolToVis}}"
-                    VerticalAlignment="Top" Margin="0,6,8,0">
-                <StackPanel HorizontalAlignment="Center">
-                    <Border Width="56" Height="56" CornerRadius="8" Background="{StaticResource AccentSoft}"
-                            HorizontalAlignment="Center">
-                        <TextBlock Text="&#xE8E5;" FontFamily="Segoe MDL2 Assets" FontSize="22"
-                                   Foreground="{StaticResource Accent}"
-                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
-                    </Border>
-                    <TextBlock Text="No configurations yet" Style="{StaticResource H2}" HorizontalAlignment="Center"
-                               Margin="0,16,0,6" />
-                    <TextBlock Text="Double-click a .npvt file in Explorer, drag it onto this window, or paste a share link."
-                               Style="{StaticResource Caption}" TextAlignment="Center" MaxWidth="430"
-                               TextWrapping="Wrap" HorizontalAlignment="Center" />
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,18,0,0">
-                        <Button Content="IMPORT A FILE" Style="{StaticResource PrimaryButton}"
-                                FontFamily="{StaticResource MonoFont}" FontSize="10.5" Margin="0,0,8,0"
-                                Command="{Binding ImportCommand}" />
-                        <Button Content="FROM CLIPBOARD" Style="{StaticResource GhostButton}"
-                                FontFamily="{StaticResource MonoFont}" FontSize="10.5"
-                                Command="{Binding ImportFromClipboardCommand}" />
+                <!-- Global Network -->
+                <Border Style="{StaticResource GroupCard}" Background="{StaticResource CardAlt}" Padding="14,12" Margin="0,2,0,0">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <Grid Grid.Row="0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock Grid.Column="0" Text="&#xE70D;" FontFamily="Segoe MDL2 Assets" FontSize="10"
+                                       Foreground="{StaticResource Muted}" VerticalAlignment="Center" Margin="0,0,12,0" />
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBlock Text="Global Network" FontSize="14.5" FontWeight="SemiBold" />
+                                <TextBlock Text="{Binding FailedCountLabel}" FontFamily="{StaticResource MonoFont}"
+                                           FontSize="11.5" Foreground="{StaticResource Muted}"
+                                           VerticalAlignment="Center" Margin="8,1,0,0" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                <Button Style="{StaticResource RowIcon}" Content="&#xE73E;" ToolTip="Check"
+                                        Foreground="{StaticResource Accent}" Command="{Binding PingAllCommand}" />
+                                <Button Style="{StaticResource RowIcon}" Content="&#xE72C;" ToolTip="Refresh"
+                                        Command="{Binding PingAllCommand}" />
+                                <Button Style="{StaticResource RowIcon}" Content="&#xE712;" ToolTip="More"
+                                        Command="{Binding NavigateCommand}" CommandParameter="logs" />
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- teal -> mint progress, as on the phone -->
+                        <Border Grid.Row="1" Height="5" CornerRadius="3" Background="#FF1B2A22"
+                                Margin="0,14,0,0" ClipToBounds="True">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="{Binding SessionBar}" />
+                                    <ColumnDefinition Width="{Binding SessionBarRest}" />
+                                </Grid.ColumnDefinitions>
+                                <Border Grid.Column="0" CornerRadius="3">
+                                    <Border.Background>
+                                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                            <GradientStop Color="#FF2EBFA9" Offset="0" />
+                                            <GradientStop Color="#FF3FE58F" Offset="1" />
+                                        </LinearGradientBrush>
+                                    </Border.Background>
+                                </Border>
+                            </Grid>
+                        </Border>
+
+                        <TextBlock Grid.Row="2" Text="{Binding TotalText}" FontFamily="{StaticResource MonoFont}"
+                                   FontSize="11" Foreground="{StaticResource Muted}" Margin="0,10,0,0" />
+                    </Grid>
+                </Border>
+
+                <!-- empty state -->
+                <Border Style="{StaticResource GroupCard}" Padding="24" Margin="0,10,0,0"
+                        Visibility="{Binding HasNoProfiles, Converter={StaticResource BoolToVis}}">
+                    <StackPanel>
+                        <TextBlock Text="No configurations yet" FontSize="14.5" FontWeight="SemiBold"
+                                   HorizontalAlignment="Center" />
+                        <TextBlock Text="Double-click a .npvt file, drag one onto this window, or paste a share link."
+                                   Style="{StaticResource Caption}" TextAlignment="Center" TextWrapping="Wrap"
+                                   Margin="0,8,0,0" HorizontalAlignment="Center" MaxWidth="380" />
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,16,0,0">
+                            <Button Content="IMPORT .NPVT" Style="{StaticResource PrimaryButton}"
+                                    FontFamily="{StaticResource MonoFont}" FontSize="10.5" Margin="0,0,8,0"
+                                    Command="{Binding ImportCommand}" />
+                            <Button Content="FROM CLIPBOARD" Style="{StaticResource GhostButton}"
+                                    FontFamily="{StaticResource MonoFont}" FontSize="10.5"
+                                    Command="{Binding ImportFromClipboardCommand}" />
+                        </StackPanel>
                     </StackPanel>
-                </StackPanel>
-            </Border>
-        </Grid>
-
-        <!-- floating action bar, as in the reference -->
-        <Border Grid.Row="3" HorizontalAlignment="Center" Margin="0,10,0,0"
-                Background="#FF12301F" BorderBrush="{StaticResource AccentBorder}" BorderThickness="1"
-                CornerRadius="26" Padding="8,6">
-            <StackPanel Orientation="Horizontal">
-                <Button Content="&#xE768;" Style="{StaticResource IconButton}" Width="34" Height="34"
-                        ToolTip="Connect" Command="{Binding ConnectCommand}" />
-                <Button Content="&#xE711;" Style="{StaticResource IconButton}" Width="34" Height="34"
-                        ToolTip="Search" Command="{Binding FocusSearchCommand}" />
-                <Button Content="&#xE72C;" Style="{StaticResource IconButton}" Width="34" Height="34"
-                        ToolTip="Ping all" Command="{Binding PingAllCommand}" />
-                <Button Content="&#xE8B7;" Style="{StaticResource IconButton}" Width="34" Height="34"
-                        ToolTip="Paste a share link" Command="{Binding ImportFromClipboardCommand}" />
-                <Button Content="&#xE9E9;" Style="{StaticResource IconButton}" Width="34" Height="34"
-                        ToolTip="Open settings" Command="{Binding NavigateCommand}" CommandParameter="settings" />
-                <Button Content="+" Style="{StaticResource RoundAccentButton}" Margin="6,0,0,0"
-                        ToolTip="Import a configuration" Command="{Binding ImportCommand}" />
+                </Border>
             </StackPanel>
-        </Border>
+        </ScrollViewer>
     </Grid>
 </UserControl>

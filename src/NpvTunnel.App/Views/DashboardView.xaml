@@ -6,293 +6,123 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d" d:DataContext="{d:DesignInstance Type=vm:MainViewModel}">
 
-    <UserControl.Resources>
-        <Style x:Key="ConnectRing" TargetType="Button">
-            <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Grid Width="286" Height="286">
-                            <Ellipse x:Name="Glow" Width="286" Height="286" Opacity="0">
-                                <Ellipse.Fill>
-                                    <RadialGradientBrush>
-                                        <GradientStop Color="#263FE58F" Offset="0.62" />
-                                        <GradientStop Color="#003FE58F" Offset="1" />
-                                    </RadialGradientBrush>
-                                </Ellipse.Fill>
-                            </Ellipse>
-                            <Ellipse x:Name="Ring" Width="248" Height="248" Stroke="#FF2C4038" StrokeThickness="1.2" />
-                            <Ellipse x:Name="Inner" Width="214" Height="214" Fill="Transparent" />
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
-                        </Grid>
-                        <ControlTemplate.Triggers>
-                            <DataTrigger Binding="{Binding IsConnected}" Value="True">
-                                <Setter TargetName="Ring" Property="Stroke" Value="{StaticResource Accent}" />
-                                <Setter TargetName="Ring" Property="StrokeThickness" Value="1.6" />
-                                <Setter TargetName="Inner" Property="Fill" Value="#123FE58F" />
-                                <Setter TargetName="Glow" Property="Opacity" Value="1" />
-                            </DataTrigger>
-                            <DataTrigger Binding="{Binding IsTransitioning}" Value="True">
-                                <Setter TargetName="Ring" Property="Stroke" Value="{StaticResource Amber}" />
-                                <Setter TargetName="Glow" Property="Opacity" Value="0.6" />
-                            </DataTrigger>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Glow" Property="Opacity" Value="0.85" />
-                                <Setter TargetName="Ring" Property="Stroke" Value="{StaticResource Accent}" />
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="Ring" Property="StrokeThickness" Value="2.4" />
-                            </Trigger>
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter Property="Opacity" Value="0.5" />
-                                <Setter Property="Cursor" Value="Arrow" />
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-    </UserControl.Resources>
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel MaxWidth="620" HorizontalAlignment="Center">
 
-    <Grid>
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="*" />
-            <ColumnDefinition Width="330" />
-        </Grid.ColumnDefinitions>
+            <!-- power ring -->
+            <Grid x:Name="DialRoot" Width="250" Height="250" HorizontalAlignment="Center" Margin="0,14,0,0"
+                  Cursor="Hand" MouseLeftButtonUp="OnDialClick" Background="Transparent">
+                <Ellipse x:Name="Halo" Width="250" Height="250" Opacity="0"
+                         Fill="{StaticResource AccentSoft}" />
+                <Ellipse x:Name="Ring" Width="222" Height="222" StrokeThickness="1.6"
+                         Stroke="{StaticResource StrokeBright}" />
+                <Path x:Name="PowerGlyph"
+                      Data="M12,3 L12,12 M6.6,6.6 A8,8 0 1 0 17.4,6.6"
+                      Stretch="Uniform" Width="46" Height="46" StrokeThickness="1.9"
+                      StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                      Stroke="{StaticResource Accent}" />
+            </Grid>
 
-        <!-- ==================== hero ==================== -->
-        <Border Grid.Column="0" Style="{StaticResource CardStyle}" Margin="0,0,14,0" ClipToBounds="True">
-            <Grid>
-                <Border Background="{StaticResource HeroGlow}" VerticalAlignment="Top" Height="300" CornerRadius="7,7,0,0" />
+            <!-- [ CONNECTED ] -->
+            <TextBlock x:Name="Bracket" Text="{Binding StatusBracket}" HorizontalAlignment="Center"
+                       Margin="0,26,0,0" FontFamily="{StaticResource MonoFont}" FontSize="15"
+                       FontWeight="Bold" Foreground="{StaticResource Muted}" />
 
-                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                    <TextBlock Text="NPV TUNNEL" Style="{StaticResource EyebrowAccent}" FontSize="11"
-                               HorizontalAlignment="Center" />
-                    <TextBlock Text="{Binding AppVersion, StringFormat=v{0}}" Style="{StaticResource Mono}"
-                               FontSize="10" HorizontalAlignment="Center" Margin="0,3,0,16" />
+            <!-- active connection group card -->
+            <Border Style="{StaticResource GroupCard}" Margin="0,22,0,0" Padding="0" CornerRadius="8">
+                <StackPanel>
+                    <TextBlock Text="ACTIVE CONNECTION GROUP" Style="{StaticResource EyebrowCenter}"
+                               Margin="0,16,0,14" />
 
-                    <Grid HorizontalAlignment="Center">
-                        <Ellipse Width="286" Height="286" Stroke="{StaticResource Accent}" StrokeThickness="1"
-                                 StrokeDashArray="1 6" Opacity="0" RenderTransformOrigin="0.5,0.5">
-                            <Ellipse.RenderTransform>
-                                <RotateTransform Angle="0" />
-                            </Ellipse.RenderTransform>
-                            <Ellipse.Style>
-                                <Style TargetType="Ellipse">
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding IsTransitioning}" Value="True">
-                                            <Setter Property="Opacity" Value="0.7" />
-                                            <DataTrigger.EnterActions>
-                                                <BeginStoryboard x:Name="SpinRing">
-                                                    <Storyboard RepeatBehavior="Forever">
-                                                        <DoubleAnimation
-                                                            Storyboard.TargetProperty="(UIElement.RenderTransform).(RotateTransform.Angle)"
-                                                            From="0" To="360" Duration="0:0:2.6" />
-                                                    </Storyboard>
-                                                </BeginStoryboard>
-                                            </DataTrigger.EnterActions>
-                                            <DataTrigger.ExitActions>
-                                                <StopStoryboard BeginStoryboardName="SpinRing" />
-                                            </DataTrigger.ExitActions>
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </Ellipse.Style>
-                        </Ellipse>
+                    <Grid Margin="22,0,18,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
 
-                        <Button Style="{StaticResource ConnectRing}" Command="{Binding ConnectCommand}"
-                                AutomationProperties.Name="Connect or disconnect">
-                            <Path Data="M12,2 V11 M6.34,5.34 A8,8 0 1 0 17.66,5.34" StrokeThickness="2"
-                                  StrokeStartLineCap="Round" StrokeEndLineCap="Round" Stretch="Uniform"
-                                  Width="52" Height="52">
-                                <Path.Style>
-                                    <Style TargetType="Path">
-                                        <Setter Property="Stroke" Value="{StaticResource Accent}" />
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding IsTransitioning}" Value="True">
-                                                <Setter Property="Stroke" Value="{StaticResource Amber}" />
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </Path.Style>
-                            </Path>
-                        </Button>
+                        <!-- the two-dot group mark -->
+                        <Canvas Grid.Column="0" Width="22" Height="22" VerticalAlignment="Center" Margin="0,0,12,0">
+                            <Ellipse Canvas.Left="0" Canvas.Top="2" Width="11" Height="11" Fill="{StaticResource Accent}" />
+                            <Ellipse Canvas.Left="7" Canvas.Top="9" Width="9" Height="9" Fill="{StaticResource Accent}" Opacity="0.75" />
+                        </Canvas>
+
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding SelectedProfile.Name, TargetNullValue=No configuration selected}"
+                                       FontSize="15" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                            <TextBlock Text="{Binding SelectedProfile.Endpoint, TargetNullValue=Import a .npvt or paste a share link}"
+                                       FontFamily="{StaticResource MonoFont}" FontSize="10.5"
+                                       Foreground="{StaticResource Muted}" Margin="0,3,0,0"
+                                       TextTrimming="CharacterEllipsis" />
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding SelectedProfile.Chip, TargetNullValue=—}" FontFamily="{StaticResource MonoFont}"
+                                       FontSize="10.5" Foreground="{StaticResource Muted}" Margin="0,0,10,0" />
+                            <TextBlock Text="&#xE76C;" FontFamily="Segoe MDL2 Assets" FontSize="11"
+                                       Foreground="{StaticResource Accent}" VerticalAlignment="Center" />
+                        </StackPanel>
                     </Grid>
 
-                    <TextBlock Text="{Binding StatusBracket}" HorizontalAlignment="Center" Margin="0,18,0,0"
-                               FontFamily="{StaticResource MonoFont}" FontSize="15" FontWeight="Bold">
-                        <TextBlock.Style>
-                            <Style TargetType="TextBlock">
-                                <Setter Property="Foreground" Value="{StaticResource Muted}" />
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding State}" Value="Connected">
-                                        <Setter Property="Foreground" Value="{StaticResource Accent}" />
-                                    </DataTrigger>
-                                    <DataTrigger Binding="{Binding State}" Value="Connecting">
-                                        <Setter Property="Foreground" Value="{StaticResource Amber}" />
-                                    </DataTrigger>
-                                    <DataTrigger Binding="{Binding State}" Value="Faulted">
-                                        <Setter Property="Foreground" Value="{StaticResource Danger}" />
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </TextBlock.Style>
-                    </TextBlock>
+                    <Button Content="PING" Style="{StaticResource BaseButton}" Background="Transparent"
+                            BorderBrush="Transparent" Foreground="{StaticResource Teal}" FontSize="12"
+                            FontWeight="Bold" HorizontalAlignment="Center" Margin="0,14,0,6"
+                            Command="{Binding PingAllCommand}" />
 
-                    <TextBlock Text="{Binding StatusDetail}" HorizontalAlignment="Center" TextAlignment="Center"
-                               TextWrapping="Wrap" MaxWidth="440" Margin="0,10,0,0" FontSize="12"
-                               Foreground="{StaticResource Muted}" />
+                    <Border Height="1" Background="{StaticResource Stroke}" Margin="0,4,0,0" />
 
-                    <!-- active connection group -->
-                    <Border Style="{StaticResource CardStyle}" Background="{StaticResource CardAlt}"
-                            Width="480" Margin="0,24,0,0" Padding="16,14">
-                        <StackPanel>
-                            <TextBlock Text="ACTIVE CONNECTION GROUP" Style="{StaticResource Eyebrow}" />
-
-                            <Grid Margin="0,12,0,0">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
-
-                                <Ellipse Grid.Column="0" Width="9" Height="9" Margin="0,5,12,0" VerticalAlignment="Top"
-                                         Fill="{Binding StatusAccent}" />
-
-                                <StackPanel Grid.Column="1">
-                                    <TextBlock Text="{Binding ActiveName}" FontSize="14.5" FontWeight="SemiBold"
-                                               TextTrimming="CharacterEllipsis" />
-                                    <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
-                                        <TextBlock Text="{Binding ActiveEndpoint}" Style="{StaticResource Mono}" />
-                                        <TextBlock Text="·" Margin="6,0" Style="{StaticResource Mono}" />
-                                        <TextBlock Text="{Binding ActiveChip}" Style="{StaticResource Mono}"
-                                                   Foreground="{StaticResource Accent}" />
-                                    </StackPanel>
-                                </StackPanel>
-
-                                <Button Grid.Column="2" Style="{StaticResource IconButton}" Content="&#xE76C;"
-                                        FontSize="14" VerticalAlignment="Center" ToolTip="Change configuration"
-                                        Command="{Binding NavigateCommand}" CommandParameter="servers" />
-                            </Grid>
-
-                            <Border Style="{StaticResource Hairline}" Margin="0,14,0,12" />
-
-                            <TextBlock Text="PING" Style="{StaticResource Eyebrow}" Foreground="{StaticResource Teal}"
-                                       HorizontalAlignment="Center" />
-                            <TextBlock Text="{Binding PingText}" HorizontalAlignment="Center"
-                                       FontFamily="{StaticResource MonoFont}" FontSize="13" Margin="0,4,0,0" />
-
-                            <Border Style="{StaticResource Hairline}" Margin="0,12,0,14" />
-
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="*" />
-                                </Grid.ColumnDefinitions>
-
-                                <StackPanel Grid.Column="0" Margin="8,0,0,0">
-                                    <TextBlock Text="DOWNLINK" Style="{StaticResource Eyebrow}" />
-                                    <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
-                                        <Path Data="M4,6 L8,10 L12,6 M4,11 L8,15 L12,11" Stroke="{StaticResource Accent}"
-                                              StrokeThickness="1.5" Stretch="Uniform" Width="11" Height="11"
-                                              VerticalAlignment="Center" />
-                                        <TextBlock Text="{Binding DownlinkTotal}" Margin="7,0,0,0"
-                                                   FontFamily="{StaticResource MonoFont}" FontSize="13"
-                                                   Foreground="{StaticResource Accent}" />
-                                    </StackPanel>
-                                </StackPanel>
-
-                                <StackPanel Grid.Column="1" Margin="8,0,0,0">
-                                    <TextBlock Text="UPLINK" Style="{StaticResource Eyebrow}" />
-                                    <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
-                                        <Path Data="M4,10 L8,2 L12,10 M4,14 L8,6 L12,14" Stroke="{StaticResource Amber}"
-                                              StrokeThickness="1.5" Stretch="Uniform" Width="11" Height="11"
-                                              VerticalAlignment="Center" />
-                                        <TextBlock Text="{Binding UplinkTotal}" Margin="7,0,0,0"
-                                                   FontFamily="{StaticResource MonoFont}" FontSize="13"
-                                                   Foreground="{StaticResource Amber}" />
-                                    </StackPanel>
-                                </StackPanel>
-                            </Grid>
-                        </StackPanel>
-                    </Border>
-                </StackPanel>
-            </Grid>
-        </Border>
-
-        <!-- ==================== rail ==================== -->
-        <StackPanel Grid.Column="1">
-            <Border Style="{StaticResource CardStyle}" Padding="16,14" Margin="0,0,0,12">
-                <StackPanel>
-                    <TextBlock Text="THROUGHPUT" Style="{StaticResource Eyebrow}" />
-                    <Grid Margin="0,12,0,0">
+                    <Grid Margin="22,16,22,18">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
+
                         <StackPanel Grid.Column="0">
-                            <TextBlock Text="{Binding DownloadText}" FontFamily="{StaticResource MonoFont}"
-                                       FontSize="15" Foreground="{StaticResource Accent}" />
-                            <TextBlock Text="down" Style="{StaticResource Eyebrow}" Margin="0,3,0,0" />
+                            <TextBlock Text="DOWNLINK" Style="{StaticResource Eyebrow}" />
+                            <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                <TextBlock Text="&#xE74B;" FontFamily="Segoe MDL2 Assets" FontSize="12"
+                                           Foreground="{StaticResource Accent}" VerticalAlignment="Center" Margin="0,0,7,0" />
+                                <TextBlock Text="{Binding DownlinkTotal}" FontFamily="{StaticResource MonoFont}"
+                                           FontSize="13" VerticalAlignment="Center" />
+                            </StackPanel>
                         </StackPanel>
+
                         <StackPanel Grid.Column="1">
-                            <TextBlock Text="{Binding UploadText}" FontFamily="{StaticResource MonoFont}"
-                                       FontSize="15" Foreground="{StaticResource Amber}" />
-                            <TextBlock Text="up" Style="{StaticResource Eyebrow}" Margin="0,3,0,0" />
+                            <TextBlock Text="UPLINK" Style="{StaticResource Eyebrow}" />
+                            <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                <TextBlock Text="&#xE74A;" FontFamily="Segoe MDL2 Assets" FontSize="12"
+                                           Foreground="{StaticResource Amber}" VerticalAlignment="Center" Margin="0,0,7,0" />
+                                <TextBlock Text="{Binding UplinkTotal}" FontFamily="{StaticResource MonoFont}"
+                                           FontSize="13" VerticalAlignment="Center" />
+                            </StackPanel>
                         </StackPanel>
                     </Grid>
                 </StackPanel>
             </Border>
 
-            <Border Style="{StaticResource CardStyle}" Padding="16,14" Margin="0,0,0,12">
-                <StackPanel>
-                    <TextBlock Text="SESSION" Style="{StaticResource Eyebrow}" Margin="0,0,0,14" />
-                    <Grid Margin="0,0,0,10">
-                        <TextBlock Text="Uptime" Foreground="{StaticResource Muted}" FontSize="12" />
-                        <TextBlock Text="{Binding UptimeText}" HorizontalAlignment="Right" Style="{StaticResource MonoValue}" />
-                    </Grid>
-                    <Grid Margin="0,0,0,10">
-                        <TextBlock Text="Total" Foreground="{StaticResource Muted}" FontSize="12" />
-                        <TextBlock Text="{Binding TotalText}" HorizontalAlignment="Right" Style="{StaticResource MonoValue}" />
-                    </Grid>
-                    <Grid Margin="0,0,0,10">
-                        <TextBlock Text="Mode" Foreground="{StaticResource Muted}" FontSize="12" />
-                        <TextBlock Text="{Binding SessionModeText}" HorizontalAlignment="Right"
-                                   FontFamily="{StaticResource MonoFont}" FontSize="11.5"
-                                   Foreground="{StaticResource Accent}" />
-                    </Grid>
-                    <Grid>
-                        <TextBlock Text="Ports" Foreground="{StaticResource Muted}" FontSize="12" />
-                        <TextBlock Text="{Binding ListenPorts}" HorizontalAlignment="Right"
-                                   Style="{StaticResource MonoValue}" FontSize="11.5" />
-                    </Grid>
-                </StackPanel>
-            </Border>
-
-            <Border Style="{StaticResource CardStyle}" Padding="16,14" Margin="0,0,0,12">
-                <StackPanel>
-                    <TextBlock Text="QUICK SETTINGS" Style="{StaticResource Eyebrow}" Margin="0,0,0,12" />
-                    <CheckBox Content="System proxy" Style="{StaticResource ToggleSwitch}"
-                              IsChecked="{Binding SetSystemProxy}" Margin="0,0,0,10" />
-                    <CheckBox Content="Block IPv6" Style="{StaticResource ToggleSwitch}"
-                              IsChecked="{Binding BlockIpv6}" Margin="0,0,0,10" />
-                    <CheckBox Content="Block QUIC" Style="{StaticResource ToggleSwitch}"
-                              IsChecked="{Binding BlockQuic}" />
-                </StackPanel>
-            </Border>
-
-            <Grid>
+            <!-- live rates + detail, the one place the desktop adds information -->
+            <Grid Margin="0,18,0,0">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
-                <Button Grid.Column="0" Content="CONFIGS" Style="{StaticResource GhostButton}" Margin="0,0,6,0"
-                        FontFamily="{StaticResource MonoFont}" FontSize="10.5"
-                        Command="{Binding NavigateCommand}" CommandParameter="servers" />
-                <Button Grid.Column="1" Content="IMPORT .NPVT" Style="{StaticResource PrimaryButton}" Margin="6,0,0,0"
-                        FontFamily="{StaticResource MonoFont}" FontSize="10.5"
-                        Command="{Binding ImportCommand}" />
+                <StackPanel Grid.Column="0" HorizontalAlignment="Center">
+                    <TextBlock Text="{Binding DownloadText}" HorizontalAlignment="Center"
+                               FontFamily="{StaticResource MonoFont}" FontSize="12"
+                               Foreground="{StaticResource Accent}" />
+                    <TextBlock Text="DOWN" Style="{StaticResource EyebrowCenter}" Margin="0,4,0,0" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" HorizontalAlignment="Center">
+                    <TextBlock Text="{Binding UploadText}" HorizontalAlignment="Center"
+                               FontFamily="{StaticResource MonoFont}" FontSize="12"
+                               Foreground="{StaticResource Amber}" />
+                    <TextBlock Text="UP" Style="{StaticResource EyebrowCenter}" Margin="0,4,0,0" />
+                </StackPanel>
             </Grid>
+
+            <TextBlock Text="{Binding StatusDetail}" HorizontalAlignment="Center" TextAlignment="Center"
+                       TextWrapping="Wrap" FontSize="11.5" Foreground="{StaticResource Muted}"
+                       MaxWidth="470" Margin="0,18,0,20" />
         </StackPanel>
-    </Grid>
+    </ScrollViewer>
 </UserControl>

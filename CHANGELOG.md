@@ -1,5 +1,40 @@
 # Changelog
 
+## 1.0.2 - 2026-11-13
+
+### Fixed
+
+* **Real .npvt files now import.** 1.0.1 only understood this project's own
+  `npvt/1` JSON, so a configuration downloaded from a channel was rejected with
+  "Unrecognised configuration". The vendor format is `NPVT1` plus comma-separated
+  white-box AES-CTR blocks, and it is now decoded in-process: containers with a
+  version chunk, a profile array and a lockConfig chunk all open, and every
+  profile inside them is imported at once.
+* The profile reader takes the server, port, UUID/password, transport, TLS/REALITY
+  settings, path, host, SNI, fingerprint and flow from the nested Xray config that
+  the container carries. Only the outbound is read - inbounds and routing rules in
+  a hostile file are ignored rather than executed.
+* `.npvs` containers are recognised and explained honestly (passphrase or app key
+  the author holds) instead of being reported as garbage.
+* A configuration that asks to skip TLS verification still cannot turn that on;
+  the request is ignored and logged.
+
+### Changed
+
+* **The window now mirrors the Android layout**: centred wordmark and version,
+  the Last ping / Ping row, Smart Route, the Saved group with its collapsible
+  list, Global Network with the teal-to-mint session bar, the floating action
+  pill, and the four-item bottom navigation (Home, Configs, Logs, More) with the
+  pill indicator under the active tab.
+* Home is the phone's Home: power ring, `[ STATUS ]` bracket, active connection
+  card with downlink/uplink, live rates underneath.
+* Search moved into the action pill, exactly where the phone keeps it.
+
+### Added
+
+* Nine tests for the container path, including the cipher's published
+  known-answer vector and a round-trip through real container layout.
+
 ## 1.0.1 - 2026-11-13
 
 ### Fixed

@@ -30,7 +30,7 @@
     </UserControl.Resources>
 
     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-        <StackPanel Margin="4,2,10,8">
+        <StackPanel Margin="2,2,8,10" MaxWidth="620" HorizontalAlignment="Center">
             <TextBlock Text="MORE" Style="{StaticResource Eyebrow}" />
             <TextBlock Text="{Binding AppVersion, StringFormat=NPV Tunnel v{0}}" FontSize="14"
                        FontWeight="SemiBold" Margin="0,4,0,18" />

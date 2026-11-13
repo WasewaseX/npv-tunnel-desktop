@@ -1,5 +1,16 @@
 # Third-party notices
 
+## npvt container cipher (white-box AES-CTR)
+
+* Upstream: <https://github.com/masihyeganeh/npvs> (Go), tables derived from
+  <https://github.com/FrontierTM/Pantegnos> (MIT)
+* License: MIT
+* Used for: `NpvtWhitebox.cs` and `NpvtContainer.cs`, the port that reads vendor
+  `NPVT1` `.npvt` containers. The port is a line-by-line translation of the
+  reference tables and block function, including the published known-answer
+  vector (`core(00 01 .. 0f) == 58bf2ecb...`) which the test suite pins.
+
+
 ## Xray-core
 
 * Version: **v26.11.9** (pinned)
