@@ -24,6 +24,9 @@ jobs:
     uses: WasewaseX/master-ci/.github/workflows/master-ci.yml@v2.12.0
     with:
       profile: standard
+      # helpers are fetched from the template repo; pin them to the same tag
+      # as the reusable workflow so a mutable branch can never be pulled in
+      template_ref: 'v2.12.0'
       runs_on: ubuntu-latest
       run_csharp: 'true'
       dotnet_version: '8.0.x'
