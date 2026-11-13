@@ -110,7 +110,7 @@ public sealed class EngineManager : IDisposable
     {
         EngineIntegrity.Verdict verdict = isCustom
             ? EngineIntegrity.VerifyCustom(enginePath)
-            : EngineIntegrity.VerifyBundled(enginePath, EngineManifest.PipelineSha256);
+            : EngineIntegrity.VerifyBundled(enginePath, EngineIntegrity.EmbeddedDigest() ?? EngineManifest.PipelineSha256);
 
         if (!verdict.Trusted)
         {

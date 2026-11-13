@@ -118,6 +118,10 @@ time, and `dist\` plus `publish\` are ignored.
   A handful of stylistic rules (CA1507, CA1707, CA1822, CA1001, CA1845) are switched off in
   `.editorconfig` with a comment each; nothing in the security or reliability band is.
 * **Formatting.** `dotnet format NpvTunnel.sln --verify-no-changes` runs before the tests.
+* **Pin drift.** The engine digest is written down in three places - the pins compiled
+  into the build, the Windows manifest and the Linux publish script - and
+  `EnginePinDriftTests` compares all three, so a release cannot ship a binary that the
+  application would then refuse to start.
 * **The vendor sample.** Both the Windows and the Linux job download the upstream npvs
   test container by commit and verify its SHA-256, then export `NPVT_REAL_SAMPLE`. The test
   that reads it is a `SkippableFact`: skipped locally when the variable is absent, but a

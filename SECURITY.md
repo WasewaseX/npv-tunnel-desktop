@@ -99,7 +99,9 @@ pipe, which is not implemented yet.
   `--trust-engine`, and it says plainly that the pin did not cover it. A digest file beside
   a custom engine is checked but is never enough on its own.
 * A build that ships a new engine must update `EngineIntegrity.Known`; the pin is part of
-  the release, not a build-time side effect.
+  the release, not a build-time side effect. `EnginePinDriftTests` compares the compiled
+  pins against the Windows manifest and the Linux publish script, so the copies cannot
+  drift apart and ship a binary the app would refuse to start.
 
 ## Storage
 
