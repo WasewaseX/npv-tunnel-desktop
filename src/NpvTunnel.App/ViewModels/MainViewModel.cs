@@ -442,6 +442,35 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         }
     }
 
+    /// <summary>
+    /// Warm light mode. The choice is written to settings and applied immediately:
+    /// the shell is rebuilt around this view model, so the tunnel keeps running.
+    /// </summary>
+    public bool WarmLightMode
+    {
+        get
+        {
+            return AppSettings.IsLight(_settings.Theme);
+        }
+        set
+        {
+            string theme = value ? "light" : "dark";
+            if (AppSettings.IsLight(_settings.Theme) == value)
+            {
+                return;
+            }
+
+            _settings.Theme = theme;
+            _settings.Save();
+            OnPropertyChanged("WarmLightMode");
+            OnPropertyChanged("ThemeLabel");
+            (Application.Current as App)?.ApplyThemeToShell(theme);
+            _log.Info("ui", value ? "Switched to the warm light palette." : "Switched to the dark palette.");
+        }
+    }
+
+    public string ThemeLabel => AppSettings.IsLight(_settings.Theme) ? "Warm light" : "Dark";
+
     public string DnsServer
     {
         get

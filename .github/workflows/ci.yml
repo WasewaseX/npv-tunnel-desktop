@@ -1,9 +1,13 @@
 name: CI
 
-# Every push to main and every pull request runs the shared quality pipeline in
-# WasewaseX/master-ci (build, analyzers, tests, dependency/secret scanning) plus
-# a Windows-only smoke job that proves the WPF app really compiles into a GUI
-# subsystem binary (no console window) and that the test suite is green.
+# Runs on every push to main and every pull request:
+#   master    - shared reusable workflow, limited to the checks that catch real
+#               defects (build, analyzers, tests, secrets, dependency review)
+#   windows   - compiles the WPF app and proves the shell actually renders
+#   linux     - builds the Linux archive and runs it, including the engine
+#
+# The shared workflow is pinned to a commit: a moved tag must not be able to
+# change what runs here.
 
 on:
   push:
@@ -21,7 +25,6 @@ permissions:
 jobs:
   master:
     name: master-ci
-    # Pinned to the v2.12.0 tag commit: a mutable tag could be moved under us.
     uses: WasewaseX/master-ci/.github/workflows/master-ci.yml@53e85397bc2f1d097d1665e8976873f1adfdc439
     with:
       profile: standard
@@ -37,29 +40,18 @@ jobs:
       run_ruby: 'false'
       run_php: 'false'
       run_docker: 'false'
-      # helpers are fetched from the template repo; pin them to the same tag as
-      # the reusable workflow so a mutable branch can never be pulled in
+      # Only the checks that catch defects. The style-scoring jobs in the
+      # template are not part of this project's gate, so they are not selected.
+      select: 'hygiene,secrets,docs,csharp,security,deps-review,scorecard'
       template_ref: 'v2.12.0'
-      # The core was recovered from the shipped 1.0.0 binaries, so its baseline
-      # complexity is whatever the decompiler produced. The blocking ceiling is
-      # raised to match that baseline today; the new-code gates below are what
-      # actually protect the tree, because every line added from here on must
-      # have zero blocking findings and cognitive/cyclomatic complexity <= 15.
-      fail_on_ai_slop: true
-      ai_slop_max_score: 25
-      diff_base: 'origin/main'
-      new_code_gates: true
-      new_code_max_slop: 0
-      new_code_max_cognitive: 15
-      new_code_max_cyclomatic: 15
     permissions:
       contents: read
       security-events: write
       pull-requests: write
       id-token: write
 
-  windows-smoke:
-    name: Windows build + tests
+  windows:
+    name: Windows build + shell
     runs-on: windows-latest
     timeout-minutes: 30
     permissions:
@@ -80,7 +72,9 @@ jobs:
         run: dotnet build NpvTunnel.sln -c Release --no-restore
 
       - name: Test
-        run: dotnet test tests/NpvTunnel.Core.Tests/NpvTunnel.Core.Tests.csproj -c Release --no-build --logger "console;verbosity=normal"
+        run: |
+          dotnet test tests/NpvTunnel.Core.Tests/NpvTunnel.Core.Tests.csproj -c Release --no-build --logger "console;verbosity=normal"
+          dotnet test tests/NpvTunnel.Cli.Tests/NpvTunnel.Cli.Tests.csproj -c Release --no-build --logger "console;verbosity=normal"
 
       - name: Publish win-x64 (framework-dependent)
         run: dotnet publish src/NpvTunnel.App/NpvTunnel.App.csproj -c Release -r win-x64 --self-contained false -o publish/smoke
@@ -138,3 +132,83 @@ jobs:
         run: |
           $hits = Select-String -Path src/NpvTunnel.App/**/*.cs,src/NpvTunnel.App/*.cs -Pattern 'AllocConsole|pinvoke.*kernel32.*console' -ErrorAction SilentlyContinue
           if ($hits) { $hits | ForEach-Object { Write-Host $_ }; throw 'Console allocation found in the GUI project.' }
+
+  linux:
+    name: Linux build + smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Test
+        run: |
+          dotnet test tests/NpvTunnel.Core.Tests/NpvTunnel.Core.Tests.csproj -c Release --logger "console;verbosity=normal"
+          dotnet test tests/NpvTunnel.Cli.Tests/NpvTunnel.Cli.Tests.csproj -c Release --logger "console;verbosity=normal"
+
+      - name: Theme consistency
+        shell: pwsh
+        run: |
+          # Both palettes must define the same keys, and every resource a view asks
+          # for must exist - a StaticResource that only lives in the dark theme
+          # fails on the user's machine at the moment they switch.
+          ./scripts/check-themes.ps1
+          # The light theme is generated; a hand edit that was never regenerated
+          # would drift away from the styles and go unnoticed.
+          ./scripts/make-light-theme.ps1
+          git diff --exit-code -- src/NpvTunnel.App/Themes/Theme.Light.xaml
+
+      - name: Build the release archive
+        shell: pwsh
+        run: ./scripts/publish-linux.ps1 -Version 1.0.0 -Runtime linux-x64 -SkipTests
+
+      - name: Install from the archive and run it
+        run: |
+          set -eu
+          mkdir -p "$RUNNER_TEMP/ship"
+          tar xzf dist/NpvTunnel-1.0.0-linux-x64.tar.gz -C "$RUNNER_TEMP/ship"
+          cd "$RUNNER_TEMP/ship/NpvTunnel-1.0.0-linux-x64"
+          # No DOTNET_ROOT, no runtime on PATH: this is what a user's machine
+          # looks like, and the archive has to work there on its own.
+          env -i HOME="$RUNNER_TEMP/home" PATH=/usr/bin:/bin sh install.sh
+          export HOME="$RUNNER_TEMP/home"
+          export PATH="$HOME/.local/bin:/usr/bin:/bin"
+          npvtunnel selftest
+          npvtunnel selftest --emit "$RUNNER_TEMP/synthetic.npvt"
+          npvtunnel import "$RUNNER_TEMP/synthetic.npvt"
+          npvtunnel list
+          npvtunnel check 0
+          npvtunnel check 1
+          npvtunnel show 0 | tee "$RUNNER_TEMP/show.txt"
+          # show must redact the credential unless --reveal is passed.
+          if grep -q '11111111-2222-3333-4444-555555555555' "$RUNNER_TEMP/show.txt"; then
+            echo '::error::npvtunnel show printed a credential without --reveal'
+            exit 1
+          fi
+          echo "==> Linux archive works with no runtime installed"
+
+      - name: Assert the store is sealed
+        run: |
+          set -eu
+          export HOME="$RUNNER_TEMP/home"
+          store="$HOME/.config/npvtunnel/profiles.json"
+          test -f "$store"
+          test -f "$HOME/.config/npvtunnel/store.key"
+          if grep -q 'example.com' "$store"; then
+            echo '::error::the profile store is readable in the clear'
+            exit 1
+          fi
+          echo "store: $(stat -c '%a' "$store"), key: $(stat -c '%a' "$HOME/.config/npvtunnel/store.key")"
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: npvtunnel-linux-x64
+          path: dist/*.tar.gz
+          retention-days: 14

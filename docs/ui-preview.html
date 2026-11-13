@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>NPV Tunnel Desktop — layout preview (1.0.2)</title>
+<title>NPV Tunnel Desktop — layout preview (1.1.0)</title>
 <style>
   :root{
     --bg:#0a120e; --bg-deep:#060c09; --row:#0e1512; --row-tint:#16321f; --row-tint-stroke:#2c6b45;
@@ -11,18 +11,34 @@
     --stroke:#1e2a24; --stroke-bright:#2c4038;
     --accent:#3fe58f; --teal:#37d6c9; --amber:#e9b44c; --danger:#ff5c6c;
     --text:#e8f1ec; --muted:#7e8f86;
+    --hover:#1a2a22; --press:#0c1511; --accent-ink:#04241b;
+    --shell:#050907; --app-a:#08100c; --app-b:#0a120e; --app-c:#070e0b;
+    --thumb:#1b2a22; --faint:#ffffff0a; --faint2:#ffffff0f;
     --mono:"Cascadia Mono",Consolas,"Courier New",monospace;
     --ui:"Segoe UI Variable Text","Segoe UI",Inter,Arial,sans-serif;
+  }
+  /* warm light: cream paper, brown-black ink, no pure white anywhere */
+  body.light{
+    --bg:#f5efe3; --bg-deep:#ede4d3; --row:#fbf6ec; --row-tint:#e8f0e4; --row-tint-stroke:#a9c3b0;
+    --card:#fbf6ec; --card-alt:#f6efe1; --nav:#f8f3e8; --nav-pill:#e4efe7;
+    --stroke:#ded3bf; --stroke-bright:#c9bca4;
+    --accent:#1f7a52; --teal:#177f76; --amber:#c98b2b; --danger:#b4434f;
+    --text:#2b2721; --muted:#6e655a;
+    --hover:#ede5d6; --press:#e2d8c4; --accent-ink:#fff8ec;
+    --shell:#e7ded0; --app-a:#f7f1e5; --app-b:#f5efe3; --app-c:#f2eadc;
+    --thumb:#cfc3ac; --faint:#00000008; --faint2:#00000012;
+    background:radial-gradient(900px 520px at 50% -10%, #1f7a5218, transparent 60%), var(--shell);
   }
   *{box-sizing:border-box;margin:0;padding:0}
   body{
     font-family:var(--ui); color:var(--text); min-height:100vh; padding:26px 16px;
     display:flex; align-items:flex-start; justify-content:center; gap:26px; flex-wrap:wrap;
-    background:radial-gradient(900px 520px at 50% -10%, #3fe58f10, transparent 60%), #050907;
+    background:radial-gradient(900px 520px at 50% -10%, #3fe58f10, transparent 60%), var(--shell);
+    transition:background .25s ease, color .25s ease;
   }
   .app{
     width:430px; height:880px; border-radius:16px; border:1px solid var(--stroke);
-    background:linear-gradient(160deg,#08100c,#0a120e 55%,#070e0b);
+    background:linear-gradient(160deg,var(--app-a),var(--app-b) 55%,var(--app-c));
     box-shadow:0 30px 80px -24px #000e; display:flex; flex-direction:column; overflow:hidden; position:relative;
   }
   /* window chrome */
@@ -30,7 +46,7 @@
   .chrome span{font-size:11px;color:var(--muted);opacity:.65}
   .chrome .win{margin-left:auto;display:flex;gap:2px}
   .win i{width:38px;height:26px;border-radius:6px;display:grid;place-items:center;color:var(--muted);font-style:normal;font-size:9px}
-  .win i:hover{background:#ffffff0a}
+  .win i:hover{background:var(--faint)}
   /* wordmark */
   .wordmark{text-align:center;margin:2px 0 14px;position:relative}
   .wordmark b{font-family:var(--mono);font-size:13.5px;font-weight:700;color:var(--accent);letter-spacing:.5px}
@@ -39,7 +55,7 @@
          color:#1b1206;display:grid;place-items:center;font-size:14px}
   .content{flex:1;min-height:0;overflow:auto;padding:0 20px}
   .content::-webkit-scrollbar{width:8px}
-  .content::-webkit-scrollbar-thumb{background:#1b2a22;border-radius:4px}
+  .content::-webkit-scrollbar-thumb{background:var(--thumb);border-radius:4px}
   .page{max-width:620px;margin:0 auto;padding-bottom:40px}
   .page[hidden]{display:none}
   .eyebrow{font-family:var(--mono);font-size:10px;font-weight:700;color:var(--muted);letter-spacing:1.4px}
@@ -86,18 +102,18 @@
   .acts{display:flex;gap:2px}
   .acts button{width:30px;height:30px;border:0;border-radius:6px;background:transparent;color:var(--text);
                font-size:13px;cursor:pointer}
-  .acts button:hover{background:#ffffff0f}
+  .acts button:hover{background:var(--hover)}
   .acts .acc{color:var(--accent)}
-  .bar{height:5px;border-radius:3px;background:#1b2a22;margin:14px 0 0;overflow:hidden}
+  .bar{height:5px;border-radius:3px;background:var(--thumb);margin:14px 0 0;overflow:hidden}
   .bar i{display:block;height:100%;width:22%;border-radius:3px;background:linear-gradient(90deg,#2ebfa9,#3fe58f)}
   .bar + .cap{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:10px}
   /* pill + nav */
-  .pill{position:relative;z-index:2;margin:0 auto -22px;width:max-content;background:#12301f;border:1px solid #234a35;
+  .pill{position:relative;z-index:2;margin:0 auto -22px;width:max-content;background:var(--row-tint);border:1px solid var(--row-tint-stroke);
         border-radius:30px;padding:7px 10px;display:flex;align-items:center;gap:2px}
   .pill button{width:36px;height:36px;border:0;border-radius:50%;background:transparent;color:var(--teal);
                font-size:14px;cursor:pointer}
   .pill button.play{color:var(--accent)}
-  .pill .plus{width:40px;height:40px;margin-left:6px;border-radius:50%;background:var(--accent);color:#06231b;
+  .pill .plus{width:44px;height:44px;margin-left:6px;border-radius:50%;background:var(--accent);color:var(--accent-ink);
               font-size:22px;line-height:1;display:grid;place-items:center;border:0;cursor:pointer}
   .nav{flex:0 0 auto;height:76px;background:var(--nav);border-top:1px solid var(--stroke);display:grid;grid-template-columns:repeat(4,1fr)}
   .nav button{background:none;border:0;cursor:pointer;display:flex;flex-direction:column;align-items:center;
@@ -106,10 +122,36 @@
   .nav .lab{font-family:var(--mono);font-size:9.5px;font-weight:700;letter-spacing:.5px}
   .nav button.active{color:var(--teal)}
   .nav button.active .ico{background:var(--nav-pill)}
+  /* the button set from Themes/Theme.xaml: 32px hit area, 7px corner, fill
+     changes on hover/press, dashed focus ring, 42% opacity when disabled */
+  .btnset{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 2px}
+  .btn{font-family:var(--ui);font-size:12.5px;font-weight:600;min-height:32px;min-width:64px;
+       padding:8px 16px;border-radius:7px;border:1px solid var(--stroke-bright);
+       background:transparent;color:var(--text);cursor:pointer;
+       transition:background .12s ease,border-color .12s ease,color .12s ease}
+  .btn:hover{background:var(--hover);border-color:var(--accent)}
+  .btn:active{background:var(--press)}
+  .btn:focus-visible{outline:2px dashed var(--accent);outline-offset:3px}
+  .btn:disabled{opacity:.42;cursor:default}
+  .btn.primary{background:linear-gradient(135deg,var(--accent),var(--teal));border-color:transparent;
+               color:var(--accent-ink)}
+  .btn.primary:hover{filter:brightness(1.12)}
+  .btn.primary:active{filter:brightness(.9)}
+  .btn.danger{color:var(--danger);border-color:var(--danger);background:transparent}
+  .btn.danger:hover{background:color-mix(in srgb,var(--danger) 14%,transparent)}
+  .btn.icon{min-width:30px;min-height:30px;width:30px;height:30px;padding:0;border-color:transparent;
+            border-radius:7px;display:grid;place-items:center}
+  .btn.icon:hover{background:var(--hover);border-color:transparent}
   .legend{width:330px;font-size:12.5px;line-height:1.65;color:#9fb0a7}
-  .legend h1{font-size:17px;color:#e8f1ec;margin-bottom:6px}
+  .legend h1{font-size:17px;color:var(--text);margin-bottom:6px}
   .legend h2{font-family:var(--mono);font-size:10.5px;letter-spacing:1.3px;color:var(--accent);margin:18px 0 6px}
-  .legend code{font-family:var(--mono);font-size:11px;color:#cfe3d9}
+  .legend code{font-family:var(--mono);font-size:11px;color:var(--text)}
+  .switcher{display:flex;gap:6px;margin:10px 0 0}
+  .switcher button{font-family:var(--mono);font-size:10.5px;font-weight:700;letter-spacing:.6px;
+                   padding:7px 11px;border-radius:7px;border:1px solid var(--stroke-bright);
+                   background:transparent;color:var(--text);cursor:pointer}
+  .switcher button.on{background:var(--hover);border-color:var(--accent);color:var(--accent)}
+  .legend{color:var(--muted)}
 </style>
 </head>
 <body>
@@ -122,7 +164,7 @@
 
   <div class="wordmark">
     <b>NPV TUNNEL</b>
-    <small>v1.0.2 (desktop)</small>
+    <small>v1.1.0 (desktop)</small>
     <div class="badge">🏅</div>
   </div>
 
@@ -151,11 +193,11 @@
         <div class="two">
           <div>
             <span class="eyebrow">DOWNLINK</span>
-            <div class="v" style="color:#e8f1ec">⌄⌄ <span style="color:var(--accent)">46.7 MB</span></div>
+            <div class="v" style="color:var(--text)">⌄⌄ <span style="color:var(--accent)">46.7 MB</span></div>
           </div>
           <div>
             <span class="eyebrow">UPLINK</span>
-            <div class="v" style="color:#e8f1ec">⌃⌃ <span style="color:var(--amber)">8.3 MB</span></div>
+            <div class="v" style="color:var(--text)">⌃⌃ <span style="color:var(--amber)">8.3 MB</span></div>
           </div>
         </div>
       </div>
@@ -230,7 +272,7 @@
 
     <!-- MORE -->
     <section class="page" id="more" hidden>
-      <div class="lastping"><div><span class="eyebrow">MORE</span><div class="big">NPV Tunnel v1.0.2</div></div></div>
+      <div class="lastping"><div><span class="eyebrow">MORE</span><div class="big">NPV Tunnel v1.1.0</div></div></div>
 
       <div class="grow alt" style="grid-template-columns:1fr auto">
         <div><div class="t">Export configuration</div><div class="s">npvt/1 · optional passphrase lock</div></div>
@@ -243,6 +285,10 @@
       <div class="grow alt" style="grid-template-columns:1fr auto">
         <div><div class="t">Tunnel engine</div><div class="s">Xray-core · digest verified</div></div>
         <div class="acts"><button>⟳</button></div>
+      </div>
+      <div class="grow alt" style="grid-template-columns:1fr auto">
+        <div><div class="t">Warm light mode</div><div class="s">Cream paper palette · no bright white</div></div>
+        <div class="acts"><button class="acc js-theme" title="Toggle the palette">◐</button></div>
       </div>
       <div class="grow alt" style="grid-template-columns:1fr auto">
         <div><div class="t">Local ports</div><div class="s">SOCKS 2080 · HTTP 2081</div></div>
@@ -272,8 +318,30 @@
 <!-- ============ notes ============ -->
 <div class="legend">
   <h1>Layout parity with the phone</h1>
-  <p>This mirrors the WPF window in 1.0.2: same order, same glyphs, same spacing
+  <p>This mirrors the WPF window in 1.1.0: same order, same glyphs, same spacing
      rhythm as the Android screenshots.</p>
+
+  <h2>PALETTE</h2>
+  <p>Dark is the default because that is the phone's design. Warm light replaces it with
+     cream paper (#F5EFE3 → #FBF6EC) and brown-black ink (#2B2721): the accents are the
+     same emerald and teal, darkened so they hold their contrast on paper. Nothing in
+     that palette is pure white, which is the whole point of it.</p>
+  <div class="switcher">
+    <button id="t-dark" class="on">DARK</button>
+    <button id="t-light">WARM LIGHT</button>
+  </div>
+
+  <h2>BUTTONS</h2>
+  <p>One template owns the hit area (32 px minimum), the corner, the focus ring and the
+     disabled state. Hover and press swap the fill instead of fading the control, so the
+     label stays readable.</p>
+  <div class="btnset">
+    <button class="btn primary">CONNECT</button>
+    <button class="btn">CANCEL</button>
+    <button class="btn danger">REMOVE</button>
+    <button class="btn icon">＋</button>
+    <button class="btn" disabled>DISABLED</button>
+  </div>
 
   <h2>WHAT CHANGED</h2>
   <p>Sidebar gone. A centred wordmark and version, the amber badge button at the
@@ -307,6 +375,20 @@
     btn.classList.add('active');
     pages.forEach(p => p.hidden = p.id !== btn.dataset.target);
     pill.style.visibility = btn.dataset.target === 'configs' ? 'visible' : 'hidden';
+  }));
+
+  // palette switch, the same one Settings -> Appearance performs
+  const dark = document.getElementById('t-dark');
+  const light = document.getElementById('t-light');
+  function setTheme(mode) {
+    document.body.classList.toggle('light', mode === 'light');
+    dark.classList.toggle('on', mode === 'dark');
+    light.classList.toggle('on', mode === 'light');
+  }
+  dark.addEventListener('click', () => setTheme('dark'));
+  light.addEventListener('click', () => setTheme('light'));
+  document.querySelectorAll('.js-theme').forEach(el => el.addEventListener('click', () => {
+    setTheme(document.body.classList.contains('light') ? 'dark' : 'light');
   }));
 
   document.getElementById('dial').addEventListener('click', function () {

@@ -35,6 +35,25 @@
             <TextBlock Text="{Binding AppVersion, StringFormat=NPV Tunnel v{0}}" FontSize="14"
                        FontWeight="SemiBold" Margin="0,4,0,18" />
 
+            <!-- appearance: the palette swap lives in the same card style as everything else -->
+            <Border Style="{StaticResource Section}">
+                <StackPanel>
+                    <TextBlock Text="APPEARANCE" Style="{StaticResource SectionTitle}" />
+
+                    <Grid Style="{StaticResource Row}">
+                        <StackPanel>
+                            <TextBlock Text="Warm light mode" Style="{StaticResource RowTitle}" />
+                            <TextBlock Text="Cream paper surfaces instead of the dark canvas, with no bright white anywhere. Easy on the eyes for long sessions and in a lit room; the phone app's dark layout stays the default."
+                                       Style="{StaticResource RowHint}" />
+                            <TextBlock Text="{Binding ThemeLabel, StringFormat=Active palette: {0}}"
+                                       Style="{StaticResource Eyebrow}" Margin="0,8,0,0" />
+                        </StackPanel>
+                        <CheckBox Style="{StaticResource ToggleSwitch}" IsChecked="{Binding WarmLightMode}"
+                                  VerticalAlignment="Center" HorizontalAlignment="Right" MinWidth="0" />
+                    </Grid>
+                </StackPanel>
+            </Border>
+
             <!-- export, mirroring the reference "Export Configuration" flow -->
             <Border Style="{StaticResource Section}">
                 <StackPanel>

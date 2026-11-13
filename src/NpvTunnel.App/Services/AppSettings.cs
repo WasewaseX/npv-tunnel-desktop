@@ -48,6 +48,9 @@ public sealed class AppSettings
 
     public bool MinimizeToTrayHintShown { get; set; }
 
+    /// <summary>"dark" (default, matches the Android app) or "light" (warm paper).</summary>
+    public string Theme { get; set; } = "dark";
+
     public string CustomEnginePath { get; set; } = string.Empty;
 
 
@@ -57,6 +60,9 @@ public sealed class AppSettings
 
     [JsonIgnore]
     public string FilePath => AppPaths.SettingsFile;
+
+    public static bool IsLight(string? theme) =>
+        string.Equals(theme, "light", StringComparison.OrdinalIgnoreCase);
 
     public static AppSettings Load()
     {

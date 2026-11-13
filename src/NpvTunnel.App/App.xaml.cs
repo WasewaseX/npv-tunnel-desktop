@@ -53,6 +53,7 @@ public partial class App : Application
         }
 
         var settings = AppSettings.Load();
+        LoadTheme(settings.Theme);
         var profiles = new ProfileRepository(Logs);
         var engine = new EngineManager(Logs);
         var proxy = new SystemProxyService(Logs);
@@ -89,6 +90,60 @@ public partial class App : Application
         }
     }
 
+    /// <summary>
+    /// Swaps the palette dictionary. Only the palette differs between themes: the
+    /// styles and templates live in the same file and are regenerated from one
+    /// source, so a button cannot look finished in one mode and broken in the other.
+    /// </summary>
+    private void LoadTheme(string theme)
+    {
+        for (int i = Resources.MergedDictionaries.Count - 1; i >= 0; i--)
+        {
+            string? source = Resources.MergedDictionaries[i].Source?.OriginalString;
+            if (source is not null && source.StartsWith("Themes/", StringComparison.OrdinalIgnoreCase))
+            {
+                Resources.MergedDictionaries.RemoveAt(i);
+            }
+        }
+
+        string file = AppSettings.IsLight(theme) ? "Themes/Theme.Light.xaml" : "Themes/Theme.xaml";
+        Resources.MergedDictionaries.Insert(0, new ResourceDictionary { Source = new Uri(file, UriKind.Relative) });
+    }
+
+    /// <summary>
+    /// Applies a theme to a running window. WPF resolves StaticResource once, so the
+    /// shell is rebuilt around the existing view model rather than left half-styled:
+    /// the tunnel state, the engine process and the profile list all survive.
+    /// </summary>
+    public void ApplyThemeToShell(string theme)
+    {
+        LoadTheme(theme);
+
+        if (MainWindow is not MainWindow old || old.DataContext is not MainViewModel viewModel)
+        {
+            return;
+        }
+
+        var replacement = new MainWindow
+        {
+            DataContext = viewModel,
+            Width = old.Width,
+            Height = old.Height,
+            WindowState = old.WindowState,
+        };
+
+        if (!double.IsNaN(old.Left) && !double.IsNaN(old.Top))
+        {
+            replacement.WindowStartupLocation = WindowStartupLocation.Manual;
+            replacement.Left = old.Left;
+            replacement.Top = old.Top;
+        }
+
+        MainWindow = replacement;
+        replacement.Show();
+        old.Close();
+    }
+
     private void RunSelfTest()
     {
         try
@@ -101,17 +156,27 @@ public partial class App : Application
 
             _viewModel = new MainViewModel(Logs, settings, profiles, engine, proxy, association);
 
-            var window = new MainWindow { DataContext = _viewModel };
-            MainWindow = window;
-            window.Show();
+            // Both palettes are rendered: a theme that only fails when selected is
+            // the kind of breakage a user finds and CI should have found first.
+            foreach (string theme in new[] { "dark", "light" })
+            {
+                LoadTheme(theme);
 
-            // Force a layout + render pass: template/binding/resource failures
-            // surface here, not in the constructor.
-            Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
-            window.UpdateLayout();
-            Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+                var window = new MainWindow { DataContext = _viewModel };
+                MainWindow = window;
+                window.Show();
 
-            window.Close();
+                // Force a layout + render pass: template/binding/resource failures
+                // surface here, not in the constructor.
+                Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+                window.UpdateLayout();
+                Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+                window.Close();
+
+                Logs.Info("app", $"Self-test: {theme} theme rendered.");
+            }
+
+            MainWindow = null;
             Logs.Info("app", "Self-test passed.");
             Shutdown(0);
         }

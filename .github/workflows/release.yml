@@ -110,6 +110,10 @@ jobs:
             plus the engine) and **requires the .NET 8 Desktop Runtime**; if you do not
             want to install that, use the setup or the portable zip instead. The setup
             and portable builds are self-contained and need nothing.
+          * **NpvTunnel-$env:VERSION-linux-x64.tar.gz** / **-linux-arm64.tar.gz** -
+            the Linux build: the same importer, safety audit and engine behind
+            ``npvtunnel``, self-contained, nothing to install. Unpack, run
+            ``sh install.sh``, done. See ``README-linux.md`` in the archive.
 
           All builds are 64-bit Windows 10/11. The ``.npvt`` association is registered by
           the setup; the portable zip registers it from inside the app (Settings -> Toggle).
@@ -134,3 +138,78 @@ jobs:
           name: npvtunnel-windows-x64
           path: dist/*
           retention-days: 30
+
+  linux:
+    name: Build and publish (Linux)
+    # Runs after the Windows job so the release already exists; both jobs upload
+    # their own assets and their own checksum file.
+    needs: release
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        runtime: [linux-x64, linux-arm64]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Resolve version
+        id: v
+        shell: pwsh
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          $version = if ($env:REF_TYPE -eq 'tag') { $env:REF_NAME.TrimStart('v') } else { $env:INPUT_VERSION }
+          if ($version -notmatch '^\d+\.\d+\.\d+$') { throw "Unusable version '$version'" }
+          "version=$version" >> $env:GITHUB_OUTPUT
+
+      - name: Build the archive
+        shell: pwsh
+        env:
+          VERSION: ${{ steps.v.outputs.version }}
+          RUNTIME: ${{ matrix.runtime }}
+        run: ./scripts/publish-linux.ps1 -Version $env:VERSION -Runtime $env:RUNTIME -SkipTests
+
+      - name: Verify the archive runs (x64 only)
+        if: matrix.runtime == 'linux-x64'
+        shell: bash
+        env:
+          VERSION: ${{ steps.v.outputs.version }}
+        run: |
+          set -eu
+          name="NpvTunnel-$VERSION-linux-x64"
+          mkdir -p "$RUNNER_TEMP/ship"
+          tar xzf "dist/$name.tar.gz" -C "$RUNNER_TEMP/ship"
+          cd "$RUNNER_TEMP/ship/$name"
+          env -i HOME="$RUNNER_TEMP/home" PATH=/usr/bin:/bin sh install.sh >/dev/null
+          export HOME="$RUNNER_TEMP/home"
+          export PATH="$HOME/.local/bin:/usr/bin:/bin"
+          npvtunnel selftest
+          echo "==> archive verified"
+
+      - name: Upload to the release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.v.outputs.version }}
+          RUNTIME: ${{ matrix.runtime }}
+        run: |
+          $tag = "v$env:VERSION"
+          $files = @(Get-ChildItem dist -File | Where-Object { $_.Name -like "*$env:RUNTIME*" } | ForEach-Object { $_.FullName })
+          if ($files.Count -eq 0) { throw "Nothing to upload for $env:RUNTIME" }
+          # The release job creates it; if this job wins a race, create it plainly.
+          if (-not (gh release view $tag 2>$null)) {
+            gh release create $tag --title "NPV Tunnel Desktop $env:VERSION" --notes "Linux and Windows builds."
+          }
+          gh release upload $tag @files --clobber
+          $files | ForEach-Object { Write-Host "uploaded $_" }

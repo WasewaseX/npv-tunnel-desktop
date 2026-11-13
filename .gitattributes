@@ -4,3 +4,8 @@
 *.ico binary
 *.dat binary
 *.exe binary
+# Shell scripts are built into the Linux archive on Windows runners: they must
+# keep LF and their execute bit or install.sh arrives unreadable.
+*.sh text eol=lf
+scripts/linux/* text eol=lf
+*.tar.gz binary

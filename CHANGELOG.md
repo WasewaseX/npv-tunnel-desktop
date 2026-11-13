@@ -1,5 +1,55 @@
 # Changelog
 
+## 1.1.0 - 2026-11-12
+
+### Added
+
+* **Linux build.** `NpvTunnel-1.1.0-linux-x64.tar.gz` and
+  `NpvTunnel-1.1.0-linux-arm64.tar.gz` ship the same importer, safety audit and
+  engine as the Windows app behind a new `npvtunnel` command
+  (`import`, `list`, `show`, `check`, `config`, `connect`, `selftest`). Both
+  archives are self-contained: no runtime, no package, no service. `install.sh`
+  puts them under `~/.local`, registers the `.npvt` MIME type, so a double-click
+  imports a configuration on Linux too.
+* **Warm light mode.** A second palette - cream paper `#F5EFE3` to `#FBF6EC`,
+  brown-black ink `#2B2721`, emerald and teal darkened to hold their contrast -
+  switchable in Settings under *Appearance*. Nothing in it is pure white. Both
+  palettes are generated from one style file (`scripts/make-light-theme.ps1`), so
+  a style change cannot land in one mode only, and `--selftest` now renders both.
+* **A safety review for every configuration** (`ConfigAudit`), applied before
+  anything reaches the engine. Refused outright: loopback/private/CGNAT/link-local
+  endpoints, REALITY without a public key, malformed ports, and VLESS without TLS
+  to a public host. Warned: no TLS on VMess/Trojan/Shadowsocks, `allowInsecure`,
+  missing SNI, unusual ports, fragmentation and mux settings the vendor JSON asks
+  for and the engine does not reproduce.
+* `npvtunnel check <index>` prints that review and then runs the engine's own
+  `-test` on the generated config, so "does this channel config actually work"
+  is one command.
+
+### Changed
+
+* **Buttons were rebuilt.** One template now owns the hit area (32 px minimum,
+  30x30 for icon targets), the 7 px corner, the focus ring and the disabled state.
+  Hover and press move the fill to another palette entry instead of fading the
+  control's opacity, which used to make the label unreadable; the primary button
+  keeps its gradient and gains a real pressed state; the round action button has
+  its own states; every button shows a dashed focus ring when reached by keyboard.
+* **The profile store in the Linux build is sealed.** `profiles.json` is
+  AES-256-GCM under `store.key` (both `0600` in a `0700` directory, replaced
+  atomically), so a channel config's live credentials are not sitting in a file
+  that ends up in a backup or a synced folder. Stores from 1.0.2 are read and
+  sealed on the next save.
+* CI no longer runs a style-scoring gate; the pipeline is the checks that catch
+  defects (build, analyzers, tests, secrets, dependency review) plus two new jobs
+  that build the GUI and the Linux archive and then run them.
+
+### Fixed
+
+* `npvtunnel check` no longer starts the engine for a configuration the audit
+  already refuses, so the report says why instead of echoing an engine error.
+* The engine dependency is verified against `ENGINE.sha256` before every run on
+  both platforms; a replaced or corrupted binary is refused.
+
 ## 1.0.2 - 2026-11-13
 
 ### Fixed

@@ -32,18 +32,21 @@ What that buys, per push and per pull request:
 | `security` | CodeQL-style SAST and dependency review over the tree |
 | `secrets` | Secret scanning on every commit |
 | `hygiene` | `.editorconfig` conformance, `actionlint` and `zizmor` over the workflows, duplication threshold |
-| `ai-integrity` | Blocking-score ceiling plus the new-code gates: added lines must have zero blocking findings and cognitive/cyclomatic complexity <= 15 |
-| `quality-ratchet`, `new-code-gate` | The trend files that stop quality from sliding back |
+| `deps-review` | Dependency review on pull requests |
 | `scorecard` | OSSF Scorecard published to the Security tab |
 
+Only those jobs are selected. The template's style-scoring jobs (a vocabulary and
+"AI-text" scorer with a numeric ceiling) are not part of this project's gate: a
+score about how prose or identifiers read does not catch a bug, and it makes a
+build fail for reasons a contributor cannot act on.
+
 The core was recovered from the shipped 1.0.0 binaries, so its baseline
-complexity is whatever the decompiler produced. That baseline is recorded as the
-ceiling in `ci.yml`; the **new-code** gates are the ones that matter going
-forward, and every line added from here on has to clear them.
+complexity is whatever the decompiler produced. Nothing here is enforced through a
+score; the analyzers report, and the tests decide.
 
-## The Windows smoke job
+## The Windows job
 
-`windows-smoke` builds the real WPF application on `windows-latest` and then
+`windows` builds the real WPF application on `windows-latest` and then
 asserts the two things that define this project's behaviour:
 
 1. **GUI subsystem.** `e_lfanew` at `0x3C`, `Subsystem` (a `UInt16`) at `PE + 0x5C`
@@ -53,11 +56,30 @@ asserts the two things that define this project's behaviour:
    console P/Invokes.
 
 It also publishes `win-x64` so a broken runtime identifier or a missing resource
-fails in CI rather than in a release.
+fails in CI rather than in a release, and runs `--selftest` over **both** palettes:
+a theme that only fails when the user selects it is exactly the breakage CI should
+have caught.
+
+## The Linux job
+
+`linux` runs on `ubuntu-latest` and covers the build that is not a WPF app:
+
+1. `dotnet test` over both suites (core + CLI).
+2. `scripts/check-themes.ps1` - both palettes define the same keys and every
+   `StaticResource` a view asks for resolves; then the light theme is regenerated
+   and the working tree must stay clean, so a hand edit cannot drift.
+3. `scripts/publish-linux.ps1` publishes the self-contained single file, downloads
+   the pinned engine, verifies the archive **and** extracted binary digests, and
+   builds the `.tar.gz`.
+4. The archive is unpacked, `install.sh` is run under `env -i` (no `DOTNET_ROOT`,
+   no runtime on `PATH`), and `npvtunnel selftest`, `import`, `list`, `check` and
+   `show` are exercised against the installed copy. `show` must redact the UUID.
+5. The store must be sealed: `profiles.json` cannot contain an address from the
+   configuration in the clear, and both files must be `0600`.
 
 ## Releases (`.github/workflows/release.yml`)
 
-Pushing a tag `v*` (or running the workflow manually) does all of this on
+Pushing a tag `v*` (or running the workflow manually) does this on
 `windows-latest`:
 
 1. `scripts/build.ps1` publishes the framework-dependent (lite) and
@@ -70,6 +92,11 @@ Pushing a tag `v*` (or running the workflow manually) does all of this on
 3. A SHA-256 manifest is written for every artifact.
 4. The GitHub Release is created (or updated) with the three downloads, the
    manifest and generated notes.
+
+Then the `linux` job runs on `ubuntu-latest` once the release exists: it builds
+both architectures with `scripts/publish-linux.ps1`, runs the x64 archive the same
+way the `linux` CI job does, and uploads the two `.tar.gz` files plus their
+`.sha256` files to the same release.
 
 No untrusted value is interpolated into a script body: versions reach the steps
 through `env`, which is what the template-injection audit requires.
