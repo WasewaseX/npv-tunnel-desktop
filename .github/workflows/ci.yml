@@ -1,0 +1,90 @@
+name: CI
+
+# Every push to main and every pull request runs the shared quality pipeline in
+# WasewaseX/master-ci (build, analyzers, tests, dependency/secret scanning) plus
+# a Windows-only smoke job that proves the WPF app really compiles into a GUI
+# subsystem binary (no console window) and that the test suite is green.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  master:
+    name: master-ci
+    uses: WasewaseX/master-ci/.github/workflows/master-ci.yml@v2.12.0
+    with:
+      profile: standard
+      runs_on: ubuntu-latest
+      run_csharp: 'true'
+      dotnet_version: '8.0.x'
+      run_node: 'false'
+      run_python: 'false'
+      run_rust: 'false'
+      run_go: 'false'
+      run_java: 'false'
+      run_cpp: 'false'
+      run_ruby: 'false'
+      run_php: 'false'
+      run_docker: 'false'
+    permissions:
+      contents: read
+      security-events: write
+      pull-requests: write
+      id-token: write
+
+  windows-smoke:
+    name: Windows build + tests
+    runs-on: windows-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore NpvTunnel.sln
+
+      - name: Build (Release)
+        run: dotnet build NpvTunnel.sln -c Release --no-restore
+
+      - name: Test
+        run: dotnet test tests/NpvTunnel.Core.Tests/NpvTunnel.Core.Tests.csproj -c Release --no-build --logger "console;verbosity=normal"
+
+      - name: Publish win-x64 (framework-dependent)
+        run: dotnet publish src/NpvTunnel.App/NpvTunnel.App.csproj -c Release -r win-x64 --self-contained false -o publish/smoke
+
+      - name: Assert GUI subsystem (no console window)
+        shell: pwsh
+        run: |
+          # PE/COFF: e_lfanew at 0x3C, Subsystem (UInt16) at PE + 0x5C.
+          # 2 = WINDOWS_GUI, 3 = WINDOWS_CUI. Anything other than 2 means a
+          # terminal window would flash on start, which this project forbids.
+          $exe = 'publish/smoke/NpvTunnel.exe'
+          if (-not (Test-Path $exe)) { throw "Missing $exe" }
+          $bytes = [System.IO.File]::ReadAllBytes($exe)
+          $pe = [BitConverter]::ToInt32($bytes, 0x3C)
+          $subsystem = [BitConverter]::ToUInt16($bytes, $pe + 0x5C)
+          Write-Host "PE subsystem = $subsystem"
+          if ($subsystem -ne 2) { throw "Expected GUI subsystem (2), got $subsystem" }
+
+      - name: Assert no console host references
+        shell: pwsh
+        run: |
+          $hits = Select-String -Path src/NpvTunnel.App/**/*.cs,src/NpvTunnel.App/*.cs -Pattern 'AllocConsole|pinvoke.*kernel32.*console' -ErrorAction SilentlyContinue
+          if ($hits) { $hits | ForEach-Object { Write-Host $_ }; throw 'Console allocation found in the GUI project.' }

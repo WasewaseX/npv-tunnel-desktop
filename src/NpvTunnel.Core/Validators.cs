@@ -50,7 +50,14 @@ public static class Validators
         return true;
     }
 
-    public static bool IsSafePath(string? path) => path is null || PathRegex.IsMatch(path);
+    /// <summary>
+    /// Transport paths are passed to the engine verbatim, so the charset is
+    /// narrowed to what a real HTTP path needs and traversal segments are
+    /// refused outright.
+    /// </summary>
+    public static bool IsSafePath(string? path) =>
+        path is null
+        || (PathRegex.IsMatch(path) && !path.Contains("..", StringComparison.Ordinal));
 
     public static bool IsValidShortId(string? sid) => string.IsNullOrEmpty(sid) || ShortIdRegex.IsMatch(sid);
 

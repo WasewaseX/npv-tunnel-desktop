@@ -24,7 +24,13 @@ public static class Redactor
         RegexOptions.Compiled);
 
     private static readonly Regex AuthHeaderRegex = new(
-        @"(?i)(authorization|proxy-authorization)\s*:\s*\S+",
+        @"(?i)(authorization|proxy-authorization)\s*:\s*(?:bearer\s+|basic\s+)?[^\s""']+",
+        RegexOptions.Compiled);
+
+    // A bare token with no header in front of it - copied out of a request dump,
+    // or pasted into a log line by a caller that never saw the header name.
+    private static readonly Regex BearerTokenRegex = new(
+        @"(?i)\bbearer\s+[A-Za-z0-9._~+/=-]{6,}",
         RegexOptions.Compiled);
 
     public static string Scrub(string? input)
@@ -37,6 +43,7 @@ public static class Redactor
         var s = ShareLinkRegex.Replace(input, m => $"{m.Groups[1].Value}://{Mask}");
         s = KeyValueSecretRegex.Replace(s, m => $"{m.Groups[1].Value}: {Mask}");
         s = AuthHeaderRegex.Replace(s, m => $"{m.Groups[1].Value}: {Mask}");
+        s = BearerTokenRegex.Replace(s, $"Bearer {Mask}");
         s = UuidRegex.Replace(s, Mask);
         return s;
     }

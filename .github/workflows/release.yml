@@ -1,0 +1,117 @@
+name: Release
+
+# Tag push (v1.2.3) -> build lite + portable zips, compile the per-user Inno
+# Setup installer that carries the .npvt association, publish a GitHub Release
+# with every artifact and a SHA-256 checksum file.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to build (e.g. 1.0.0)'
+        required: true
+        default: '1.0.0'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build and publish
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Resolve version
+        id: v
+        shell: pwsh
+        run: |
+          if ('${{ github.ref_type }}' -eq 'tag') {
+            $version = '${{ github.ref_name }}'.TrimStart('v')
+          } else {
+            $version = '${{ inputs.version }}'
+          }
+          if ($version -notmatch '^\d+\.\d+\.\d+$') { throw "Unusable version '$version'" }
+          "version=$version" >> $env:GITHUB_OUTPUT
+          Write-Host "Building $version"
+
+      - name: Build bundles
+        shell: pwsh
+        run: ./scripts/build.ps1 -Version ${{ steps.v.outputs.version }}
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: |
+          choco install innosetup --no-progress -y
+          $iscc = 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe'
+          if (-not (Test-Path $iscc)) { throw 'ISCC.exe not found' }
+          "ISCC=$iscc" >> $env:GITHUB_ENV
+
+      - name: Compile installer
+        shell: pwsh
+        run: |
+          Copy-Item dist/portable -Destination dist/portable-stage -Recurse -Force -ErrorAction SilentlyContinue
+          & $env:ISCC "/DMyAppVersion=${{ steps.v.outputs.version }}" installer/NpvTunnel.iss
+          if ($LASTEXITCODE -ne 0) { throw 'Inno Setup failed' }
+          $setup = Get-ChildItem dist/*setup*.exe
+          if (-not $setup) { throw 'Installer was not produced' }
+          Write-Host "Installer: $($setup.Name) ($([math]::Round($setup.Length/1MB,1)) MB)"
+
+      - name: Checksums
+        shell: pwsh
+        run: |
+          Get-ChildItem dist -File |
+            Where-Object { $_.Extension -in '.exe', '.zip' } |
+            ForEach-Object { "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower())  $($_.Name)" } |
+            Sort-Object |
+            Out-File "dist/npvtunnel-${{ steps.v.outputs.version }}-checksums.txt" -Encoding ascii
+          Get-Content "dist/npvtunnel-${{ steps.v.outputs.version }}-checksums.txt"
+
+      - name: Create GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $tag = "v${{ steps.v.outputs.version }}"
+          $notes = @"
+          ## NPV Tunnel Desktop ${{ steps.v.outputs.version }}
+
+          Native Windows (WPF) client for VLESS, VMess, Trojan, Shadowsocks, SOCKS5,
+          HTTP and Hysteria2 tunnels. No console window, no browser wrapper.
+
+          ### Download
+          * **NpvTunnel-*-setup.exe** - recommended. Per-user install, no administrator
+            rights, one SmartScreen prompt, registers the ``.npvt`` association so a
+            double-click imports a configuration straight into the app.
+          * **NpvTunnel-*-portable.zip** - self-contained single file; run it from
+            anywhere, nothing installed.
+          * **NpvTunnel-*-lite.zip** - smallest download, requires the .NET 8 Desktop
+            Runtime.
+
+          Verify with ``npvtunnel-${{ steps.v.outputs.version }}-checksums.txt``.
+
+          Built by GitHub Actions from ${{ github.sha }}.
+          "@
+          $notes | Out-File notes.md -Encoding utf8
+          $files = Get-ChildItem dist -File | Where-Object { $_.Extension -in '.exe', '.zip', '.txt' } | ForEach-Object { $_.FullName }
+          if (gh release view $tag 2>$null) {
+            gh release upload $tag @files --clobber
+            gh release edit $tag --notes-file notes.md
+          } else {
+            gh release create $tag @files --title "NPV Tunnel Desktop ${{ steps.v.outputs.version }}" --notes-file notes.md
+          }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: npvtunnel-${{ steps.v.outputs.version }}
+          path: dist/*
+          retention-days: 30
